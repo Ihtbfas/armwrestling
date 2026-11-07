@@ -9,6 +9,7 @@ import mujoco
 import mujoco.viewer
 
 from sim.control import BrakeParameters, brake_state
+from sim.visualization import configure_camera, update_brake_arrow, set_boundary_marker
 
 
 MODEL_PATH = Path(__file__).with_name("arm.xml")
@@ -33,10 +34,12 @@ def main():
         speed_transition=args.transition,
     )
     model = mujoco.MjModel.from_xml_path(str(MODEL_PATH))
+    set_boundary_marker(model, parameters)
     data = mujoco.MjData(model)
     joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "arm_hinge")
     position_index = model.jnt_qposadr[joint_id]
     velocity_index = model.jnt_dofadr[joint_id]
+    handle_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "handle")
     input_direction = [0]
 
     def on_key(keycode):
@@ -53,10 +56,14 @@ def main():
 
     print("Viewer focused: 1 = forward torque, 2 = reverse torque, 0 = release, Esc = quit", flush=True)
     print("Yellow line = free-space boundary; angle and torques appear here every 0.25 s.", flush=True)
+    print("Orange arrow = actual brake torque; drag the mouse to orbit/pan, scroll to zoom.", flush=True)
+    print("Ideal passive balance: moving COM on horizontal shaft; no active gravity compensation.", flush=True)
     started = time.monotonic()
     next_report = started
     threads_before_viewer = set(threading.enumerate())
-    with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
+    with mujoco.viewer.launch_passive(
+        model, data, key_callback=on_key, show_left_ui=False, show_right_ui=False
+    ) as viewer:
         # MuJoCo's passive viewer runs on a daemon thread on Linux.
         viewer_thread = next(
             (
@@ -66,18 +73,23 @@ def main():
             None,
         )
         with viewer.lock():
-            viewer.cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
-            viewer.cam.fixedcamid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, "top")
+            configure_camera(viewer.cam)
         while viewer.is_running():
             step_started = time.monotonic()
             if args.duration is not None and step_started - started >= args.duration:
                 break
-            angle = float(data.qpos[position_index])
-            speed = float(data.qvel[velocity_index])
-            state = brake_state(angle, speed, parameters)
-            user_torque = input_direction[0] * args.user_torque
-            data.qfrc_applied[velocity_index] = user_torque + state.applied_torque
-            mujoco.mj_step(model, data)
+            with viewer.lock():
+                angle = float(data.qpos[position_index])
+                speed = float(data.qvel[velocity_index])
+                state = brake_state(angle, speed, parameters)
+                user_torque = input_direction[0] * args.user_torque
+                data.qfrc_applied[velocity_index] = user_torque + state.applied_torque
+                mujoco.mj_step(model, data)
+                # Refresh world positions after integration for the attached arrow.
+                mujoco.mj_forward(model, data)
+                update_brake_arrow(viewer.user_scn, data.geom_xpos[handle_id],
+                                   data.xanchor[joint_id], state.applied_torque,
+                                   data.xaxis[joint_id], data.geom_xmat[handle_id].reshape(3, 3)[:, 2])
             viewer.sync()
             if step_started >= next_report:
                 print(
