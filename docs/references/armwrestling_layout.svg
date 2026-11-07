@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="850" viewBox="0 0 1600 850">
+<defs>
+ <style>
+ text {font-family: 'Noto Sans CJK SC', 'Noto Sans CJK', sans-serif; fill:#233449;}
+ .title {font-size:33px; font-weight:700;} .subtitle{font-size:19px; fill:#526579;} .paneltitle{font-size:27px; font-weight:700;} .lab{font-size:22px; font-weight:600;} .note{font-size:19px; fill:#4e647a;} .fine{font-size:18px; fill:#53677b;}
+ </style>
+ <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L12 6 L0 12 z" fill="#e28e2e"/></marker>
+ <marker id="blueArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L12 6 L0 12 z" fill="#4c8eac"/></marker>
+</defs>
+<rect width="1600" height="850" fill="#f8fafc"/>
+<text x="75" y="62" class="title">单自由度扳手腕装置｜简化布局草图</text>
+<text x="75" y="99" class="subtitle">参照原始机械设计：用户握住立式把手，通过双杆摆臂与固定水平转轴连接；磁粉制动器提供阻力</text>
+<rect x="48" y="129" width="745" height="608" rx="19" fill="#fff" stroke="#d2dae3" stroke-width="3"/>
+<rect x="817" y="129" width="735" height="608" rx="19" fill="#fff" stroke="#d2dae3" stroke-width="3"/>
+<text x="77" y="174" class="paneltitle">侧向结构关系示意</text>
+<text x="847" y="174" class="paneltitle">俯视安装关系示意</text>
+<path d="M105 575 L725 575 L725 610 L105 610 Z" fill="#9bacbd" stroke="#52677c" stroke-width="3"/>
+<path d="M160 610 L160 681 M670 610 L670 681" stroke="#8395a6" stroke-width="22"/>
+<path d="M126 575 L710 575" stroke="#e0e7ef" stroke-width="6"/>
+<rect x="158" y="533" width="155" height="40" rx="16" fill="#d88b5b" stroke="#9d5c38" stroke-width="4"/>
+<rect x="179" y="571" width="114" height="8" fill="#627e8c"/>
+<text x="178" y="512" class="lab">用户肘垫</text>
+<rect x="593" y="443" width="90" height="132" rx="8" fill="#447a9e" stroke="#2c5574" stroke-width="4"/>
+<rect x="571" y="463" width="117" height="25" rx="8" fill="#567e99" stroke="#325775" stroke-width="3"/>
+<circle cx="621" cy="453" r="31" fill="#b4c0c9" stroke="#5f7180" stroke-width="6"/>
+<circle cx="621" cy="453" r="12" fill="#eaf0f2" stroke="#536477" stroke-width="3"/>
+<path d="M318 330 L604 444" stroke="#188b96" stroke-width="20" stroke-linecap="round"/>
+<path d="M340 309 L628 423" stroke="#1f9ba5" stroke-width="18" stroke-linecap="round"/>
+<path d="M303 320 L333 312" stroke="#186b75" stroke-width="23" stroke-linecap="round"/>
+<path d="M602 443 L628 423" stroke="#316b7d" stroke-width="21" stroke-linecap="round"/>
+<rect x="281" y="206" width="48" height="122" rx="12" fill="#232c36" stroke="#10171e" stroke-width="4"/>
+<rect x="273" y="197" width="64" height="16" rx="6" fill="#d68b36"/>
+<rect x="277" y="320" width="56" height="16" rx="6" fill="#b1bfc6"/>
+<path d="M279 229 L327 229 M279 246 L327 246 M279 264 L327 264 M279 281 L327 281 M279 300 L327 300" stroke="#70808d" stroke-width="3"/>
+<rect x="692" y="471" width="37" height="84" rx="7" fill="#485e74"/>
+<path d="M648 449 L704 449" stroke="#788da1" stroke-width="12"/>
+<path d="M299 195 L243 191 L203 229" stroke="#e28e2e" fill="none" stroke-width="3"/>
+<text x="91" y="238" class="lab">竖直握把</text>
+<text x="92" y="266" class="note">用户用手抓住这里</text>
+<path d="M448 368 L426 311" stroke="#e28e2e" fill="none" stroke-width="3"/>
+<text x="409" y="287" class="lab">双杆摆臂</text>
+<text x="392" y="310" class="fine">传递用户施力与阻力</text>
+<path d="M647 420 L690 372" stroke="#e28e2e" fill="none" stroke-width="3"/>
+<text x="547" y="350" class="lab">固定转轴</text>
+<text x="535" y="377" class="fine">轴向以 CAD 为准</text>
+<path d="M588 440 Q504 417 531 339" stroke="#e28e2e" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+<text x="352" y="642" class="note">摆臂绕固定轴摆动，握把走圆弧</text>
+<text x="352" y="675" class="fine">不是沿桌面水平扫动的一根机器人手臂</text>
+<rect x="874" y="237" width="607" height="402" rx="14" fill="#e9eff3" stroke="#657a91" stroke-width="4"/>
+<rect x="910" y="484" width="188" height="98" rx="22" fill="#db9565" stroke="#a2603e" stroke-width="4"/>
+<text x="938" y="540" class="lab">肘垫</text>
+<circle cx="1125" cy="356" r="39" fill="#e9f7fb" stroke="#266f83" stroke-width="5"/>
+<circle cx="1125" cy="356" r="16" fill="#172a37"/>
+<text x="1091" y="287" class="lab">握把</text>
+<rect x="1353" y="315" width="72" height="94" rx="8" fill="#4984a3" stroke="#31647c" stroke-width="4"/>
+<circle cx="1360" cy="365" r="30" fill="#a1b6c5" stroke="#50748e" stroke-width="5"/>
+<circle cx="1360" cy="365" r="11" fill="#e9f2f7"/>
+<path d="M1151 345 L1356 345 M1151 371 L1356 371" stroke="#178e9e" stroke-width="14" stroke-linecap="round"/>
+<rect x="1427" y="342" width="49" height="56" rx="10" fill="#3e5269" stroke="#26384a" stroke-width="3"/>
+<path d="M1391 365 L1427 365" stroke="#677d8f" stroke-width="13"/>
+<text x="1305" y="279" class="lab">转轴 / 支座</text>
+<text x="1352" y="439" class="fine">后部制动传动</text>
+<path d="M990 643 L1035 596" stroke="#e28e2e" stroke-width="4" marker-end="url(#arrow)"/>
+<text x="888" y="672" class="lab">用户坐在桌前</text>
+<text x="888" y="704" class="fine">肘放垫上、手伸向握把</text>
+<path d="M1022 511 Q1051 414 1119 390" stroke="#e28e2e" stroke-width="5" fill="none" stroke-dasharray="9 9" marker-end="url(#arrow)"/>
+<text x="75" y="787" class="subtitle">示意图用于统一结构理解，不代表最终尺寸或 CAD 运动学。尤其应以机械组确定的真实旋转轴线、转角方向和握持轨迹为准。</text>
+</svg>
