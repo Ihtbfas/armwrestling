@@ -1,5 +1,13 @@
 # armwrestling — MuJoCo 水平握把验证
 
+已增加 [固定肘部与握持轨迹适配分析](docs/trajectory-fit.md)：比较四个布局，区分肘垫接触点、肘关节中心、手腕中心和握持中点。原模型仍为默认；可独立观察 `sim/candidates/elbow_axis.xml` 候选 C，不能把示例人体参数当作已确认尺寸。
+
+```bash
+.venv/bin/python -m sim.run --model sim/candidates/elbow_axis.xml
+```
+
+重算二维图和数据时安装可选依赖：`uv pip install --python .venv/bin/python -r sim/requirements-analysis.txt`，再运行 `.venv/bin/python -m sim.fit_analysis`。不绘图时仿真无需 Matplotlib。
+
 单自由度被动力反馈扳手腕项目。当前 `sim/` 验证自由空间阻力控制；`real/` 只预留实机软件。
 
 ## 安装与启动
@@ -96,7 +104,7 @@ M(q) = min(Mmax, K × max(0, q - qb))
 .venv/bin/python -m unittest discover -s sim -p 'test_*.py' -v
 ```
 
-共 26 项测试：原有自由区、线性增长、封顶、零速过渡、方向和制动功率测试；另检查水平轴、双杆刚性连接、圆弧轨迹、肘垫与握把关系、多个角度下无重力漂移、边界更新、箭头方向/比例/隐藏及自由相机。
+共 30 项测试：原有自由区、线性增长、封顶、零速过渡、方向和制动功率测试；另检查水平轴、双杆刚性连接、圆弧轨迹、肘垫与握把关系、多个角度下无重力漂移、边界更新、箭头方向/比例/隐藏及自由相机。
 
 实际打开查看器，从用户正面、前臂侧面、斜俯视运行下压/返回，检查三个零位视角和同相机下压图；另在完整角范围验证握把朝向恒定，在负角全行程验证几何间隙。人体全行程合理性未作为已通过项目。自动脚本输入用于复现，未把无界面测试当作窗口验证。
 

@@ -28,6 +28,7 @@ def keyboard_torque(keycode, magnitude, parameters):
 
 def main():
     parser = argparse.ArgumentParser(description="Passive one-joint arm wrestling demo")
+    parser.add_argument("--model", type=Path, default=MODEL_PATH, help="optional candidate MJCF file")
     parser.add_argument("--boundary", type=float, default=0.25, help="free boundary in radians")
     parser.add_argument("--stiffness", type=float, default=2.0, help="brake slope in N m/rad")
     parser.add_argument("--max-brake", type=float, default=0.8, help="maximum brake target in N m")
@@ -44,7 +45,8 @@ def main():
         max_torque=args.max_brake,
         speed_transition=args.transition,
     )
-    model = mujoco.MjModel.from_xml_path(str(MODEL_PATH))
+    print(f"Model: {args.model}", flush=True)
+    model = mujoco.MjModel.from_xml_path(str(args.model))
     set_boundary_marker(model, parameters)
     data = mujoco.MjData(model)
     joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "arm_hinge")

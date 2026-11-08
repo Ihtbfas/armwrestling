@@ -1,0 +1,170 @@
+[
+  {
+    "name": "A",
+    "label": "A Current",
+    "axis": [
+      0.34,
+      0.007361611466,
+      0.16
+    ],
+    "grip0": [
+      0.0,
+      -0.192638388534,
+      0.49
+    ],
+    "contact": [
+      0.0,
+      -0.3,
+      0.123
+    ],
+    "elbow": [
+      0.0,
+      -0.3,
+      0.163
+    ],
+    "clearance": {
+      "grip_minima": {
+        "arm_left": 0.041000000001871734,
+        "arm_right": 0.06378174593150392,
+        "elbow_pad": 0.12049392962855007,
+        "table_top": 0.1916194344432128
+      },
+      "assembly_minimum": 0.0006144590798474268,
+      "worst_pair": [
+        "arm_left",
+        "bearing_front",
+        -0.55
+      ],
+      "nq": 1,
+      "nu": 0,
+      "horizontal_axis": true,
+      "grip_axis_error_max": 4.440892098500626e-16
+    }
+  },
+  {
+    "name": "B",
+    "label": "B Pad shift",
+    "axis": [
+      0.34,
+      0.007361611466,
+      0.16
+    ],
+    "grip0": [
+      0.0,
+      -0.192638388534,
+      0.49
+    ],
+    "contact": [
+      0.2,
+      -0.3,
+      0.123
+    ],
+    "elbow": [
+      0.2,
+      -0.3,
+      0.163
+    ],
+    "clearance": {
+      "grip_minima": {
+        "arm_left": 0.041000000001871734,
+        "arm_right": 0.06378174593150392,
+        "elbow_pad": 0.25087412487862715,
+        "table_top": 0.1916194344432128
+      },
+      "assembly_minimum": 0.0006144590798474268,
+      "worst_pair": [
+        "arm_left",
+        "bearing_front",
+        -0.55
+      ],
+      "nq": 1,
+      "nu": 0,
+      "horizontal_axis": true,
+      "grip_axis_error_max": 4.440892098500626e-16
+    }
+  },
+  {
+    "name": "C",
+    "label": "C Elbow-axis",
+    "axis": [
+      0.0,
+      0.007361611466,
+      0.163
+    ],
+    "grip0": [
+      0.0,
+      -0.192638388534,
+      0.49
+    ],
+    "contact": [
+      0.0,
+      -0.3,
+      0.123
+    ],
+    "elbow": [
+      0.0,
+      -0.3,
+      0.163
+    ],
+    "clearance": {
+      "grip_minima": {
+        "arm_left": 0.040999999999999905,
+        "arm_right": 0.06378174593052016,
+        "elbow_pad": 0.3051512659993259,
+        "table_top": 0.36977551871345843
+      },
+      "assembly_minimum": 0.012064751943981536,
+      "worst_pair": [
+        "arm_left",
+        "bearing_front",
+        -0.55
+      ],
+      "nq": 1,
+      "nu": 0,
+      "horizontal_axis": true,
+      "grip_axis_error_max": 4.440892098500626e-16
+    }
+  },
+  {
+    "name": "D",
+    "label": "D Offset-axis",
+    "axis": [
+      0.0,
+      0.007361611466,
+      0.223
+    ],
+    "grip0": [
+      0.0,
+      -0.192638388534,
+      0.49
+    ],
+    "contact": [
+      0.0,
+      -0.3,
+      0.123
+    ],
+    "elbow": [
+      0.0,
+      -0.3,
+      0.163
+    ],
+    "clearance": {
+      "grip_minima": {
+        "arm_left": 0.040999999999999925,
+        "arm_right": 0.06378174593052016,
+        "elbow_pad": 0.3071355689428079,
+        "table_top": 0.378624047389888
+      },
+      "assembly_minimum": 0.009968684125424317,
+      "worst_pair": [
+        "arm_left",
+        "bearing_front",
+        -0.55
+      ],
+      "nq": 1,
+      "nu": 0,
+      "horizontal_axis": true,
+      "grip_axis_error_max": 4.440892098500626e-16
+    }
+  }
+]

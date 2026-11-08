@@ -1,0 +1,21 @@
+{
+  "model_sha256": "a847b8423306608c0d8c4bb317559a15c2c7e27ab811d82a42474ffc201731df",
+  "mujoco": "3.17.0",
+  "numpy": "2.5.4",
+  "matplotlib": "3.11.2",
+  "angular_samples": 501,
+  "angle_start": 0.0,
+  "angle_end": -0.55,
+  "elbow_joint_height_example": 0.04,
+  "hand_offset_example": [
+    0.0,
+    0.0,
+    0.06
+  ],
+  "forearm_length_examples": [
+    0.24,
+    0.28,
+    0.32
+  ],
+  "note": "Deterministic model scenarios, not measured people or statistical replicates."
+}

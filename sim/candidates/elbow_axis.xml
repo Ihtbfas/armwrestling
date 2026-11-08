@@ -1,0 +1,72 @@
+<mujoco model="passive_arm_wrestling">
+  <!--Generated candidate for inspection only; not the default model.-->
+  <compiler angle="radian"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
+  <statistic center="0 0 -0.05" extent="1.2"/>
+  <visual>
+    <global offwidth="1200" offheight="850"/>
+    <headlight ambient="0.25 0.25 0.25" diffuse="0.45 0.45 0.45" specular="0.2 0.2 0.2"/>
+    <rgba haze="0.80 0.86 0.92 1"/>
+    <quality shadowsize="2048"/>
+  </visual>
+  <default>
+    <!-- Appearance-only geometry: no additional contacts or moving mass. -->
+    <geom contype="0" conaffinity="0" friction="0 0 0"/>
+  </default>
+  <asset>
+    <texture name="sky" type="skybox" builtin="gradient" rgb1="0.65 0.76 0.88" rgb2="0.94 0.96 0.98" width="512" height="3072"/>
+    <texture name="floor_grid" type="2d" builtin="checker" rgb1="0.81 0.84 0.86" rgb2="0.91 0.93 0.94" width="512" height="512"/>
+    <material name="floor_mat" texture="floor_grid" texrepeat="3 3" reflectance="0"/>
+    <material name="metal" rgba="0.64 0.70 0.76 1" specular="0.4" shininess="0.35"/>
+    <material name="frame" rgba="0.16 0.23 0.30 1"/>
+    <material name="blue" rgba="0.08 0.43 0.68 1"/>
+    <material name="rubber" rgba="0.10 0.13 0.16 1"/>
+  </asset>
+  <worldbody>
+    <light pos="0.4 -0.6 2.3" dir="-0.2 0.3 -1" diffuse="0.6 0.6 0.6"/>
+    <light pos="-1 0.8 1.4" dir="0.5 -0.3 -1" diffuse="0.25 0.25 0.25" castshadow="false"/>
+    <geom name="floor" type="plane" size="3 3 0.1" pos="0 0 -0.70" material="floor_mat"/>
+    <geom name="table" type="box" size="0.62 0.45 0.035" material="frame"/>
+    <geom type="box" size="0.61 0.44 0.006" pos="0 0 0.041" rgba="0.70 0.75 0.78 1" name="table_top"/>
+    <geom type="box" size="0.03 0.03 0.32" pos="-0.52 -0.35 -0.355" material="metal"/>
+    <geom type="box" size="0.03 0.03 0.32" pos="0.52 -0.35 -0.355" material="metal"/>
+    <geom type="box" size="0.03 0.03 0.32" pos="-0.52 0.35 -0.355" material="metal"/>
+    <geom type="box" size="0.03 0.03 0.32" pos="0.52 0.35 -0.355" material="metal"/>
+    <!-- User sits at y < -0.45; horizontal main shaft points along +Y. -->
+    <geom name="elbow_pad_base" type="box" size="0.075 0.08 0.015" pos="0.000000000000 -0.300000000000 0.062000000000" material="frame"/>
+    <geom name="elbow_pad" type="box" size="0.085 0.09 0.023" pos="0.000000000000 -0.300000000000 0.100000000000" rgba="0.65 0.32 0.15 1"/>
+    <geom name="user_edge" type="box" size="0.15 0.008 0.003" pos="0 -0.434 0.051" material="blue"/>
+    <geom name="base_plate" type="box" size="0.13 0.16 0.012" pos="0.000000000000 0.007361611466 0.061000000000" material="blue"/>
+    <geom name="bearing_front" type="box" size="0.055000000000 0.025000000000 0.046500000000" pos="0.000000000000 -0.102638388534 0.116500000000" material="metal"/>
+    <geom name="bearing_rear" type="box" size="0.055000000000 0.025000000000 0.046500000000" pos="0.000000000000 0.117361611466 0.116500000000" material="metal"/>
+    <geom name="shaft" type="cylinder" fromto="0.000000000000 -0.177638388534 0.163000000000 0.000000000000 0.267361611466 0.163000000000" size="0.018" material="frame"/>
+    <geom name="brake_housing" type="box" size="0.080000000000 0.060000000000 0.046500000000" pos="0.000000000000 0.257361611466 0.116500000000" material="blue"/>
+    <geom name="brake_endcap" type="cylinder" fromto="0.000000000000 0.312361611466 0.163000000000 0.000000000000 0.327361611466 0.163000000000" size="0.045" material="metal"/>
+    <geom name="transmission_cover" type="box" size="0.06 0.055 0.022" pos="0.000000000000 0.197361611466 0.163000000000" material="frame"/>
+    <!-- Shaft-mounted angle dial: dark zero tick and yellow boundary tick. -->
+    <body name="boundary_reference" pos="0.000000000000 -0.167638388534 0.163000000000" quat="0.9921976672 0 -0.1246747334 0">
+      <geom name="boundary_dial" type="cylinder" size="0.055 0.004" quat="0.7071067811865476 0.7071067811865476 0 0" rgba="0.87 0.90 0.93 1"/>
+      <geom name="free_boundary_marker" type="capsule" fromto="0.000000000000 -0.006000000000 0.043000000000 0.000000000000 -0.006000000000 0.064000000000" size="0.0035" rgba="1 0.63 0.02 1"/>
+    </body>
+    <body name="swing_arm" pos="0.000000000000 0.007361611466 0.163000000000">
+      <!-- Ideal PASSIVE balance: total moving COM on axis; no gravcomp or actuator.
+           Inertia represents the whole balanced assembly, not decorative geom density. -->
+      <inertial pos="0 0 0" mass="1" diaginertia="0.035 0.05469492132716054 0.035"/>
+      <joint name="arm_hinge" type="hinge" axis="0 1 0" range="-0.55 1.2" damping="0.04"/>
+      <geom name="hub" type="cylinder" fromto="0 -0.075 0 0 0.075 0" size="0.040" material="blue"/>
+      <!-- Two long parallel rods, joined rigidly at both ends: one DOF, no four-bar. -->
+      <geom name="arm_left" type="capsule" fromto="0.000000000000 -0.055000000000 0.000000000000 0.000000000000 -0.175000000000 0.247000000000" size="0.014" material="blue"/>
+      <geom name="arm_right" type="capsule" fromto="0.000000000000 0.055000000000 0.000000000000 0.000000000000 -0.065000000000 0.247000000000" size="0.014" material="blue"/>
+      <geom name="end_crossbar" type="capsule" fromto="0.000000000000 -0.195000000000 0.247000000000 0.000000000000 -0.045000000000 0.247000000000" size="0.022" material="metal"/>
+      <geom name="handle" type="cylinder" size="0.025 0.08" pos="0.000000000000 -0.200000000000 0.327000000000" material="rubber" quat="0.7071067811865476 0.7071067811865476 0 0"/>
+      <geom name="handle_cap" type="cylinder" size="0.027 0.006" pos="0.000000000000 -0.286000000000 0.327000000000" rgba="0.92 0.35 0.12 1" quat="0.7071067811865476 0.7071067811865476 0 0"/>
+      <!-- Illustrative passive balance block; actual counterweight sizing remains unknown. -->
+      <geom name="balance_stem" type="capsule" fromto="0 0 0 0.055 0 -0.025" size="0.012" material="metal"/>
+      <geom name="balance_block" type="box" size="0.02 0.07 0.018" pos="0.055 0 -0.025" material="frame"/>
+      <geom name="grip_support" type="capsule" fromto="0.000000000000 -0.120000000000 0.247000000000 0.000000000000 -0.120000000000 0.327000000000" size="0.014" material="metal"/>
+      <site name="example_wrist_corotating" type="sphere" pos="0.000000000000 -0.200000000000 0.267000000000" size="0.008" rgba="0.7 0.2 0.65 1"/>
+    </body>
+    <geom name="zero_tick" type="capsule" fromto="0.000000000000 -0.175638388534 0.188000000000 0.000000000000 -0.175638388534 0.210000000000" size="0.0015" rgba="0.10 0.15 0.20 1"/>
+    <site name="example_elbow_joint" type="sphere" pos="0.000000000000 -0.300000000000 0.163000000000" size="0.008" rgba="0.0 0.65 0.55 1"/>
+  </worldbody>
+</mujoco>
