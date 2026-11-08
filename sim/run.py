@@ -55,7 +55,7 @@ def main():
             print(f"Keyboard input direction: {input_direction[0]:+d}", flush=True)
 
     print("Viewer focused: 1 = forward torque, 2 = reverse torque, 0 = release, Esc = quit", flush=True)
-    print("Yellow line = free-space boundary; angle and torques appear here every 0.25 s.", flush=True)
+    print("Yellow dial tick = free-space boundary; angle and torques appear here every 0.25 s.", flush=True)
     print("Orange arrow = actual brake torque; drag the mouse to orbit/pan, scroll to zoom.", flush=True)
     print("Ideal passive balance: moving COM on horizontal shaft; no active gravity compensation.", flush=True)
     started = time.monotonic()

@@ -22,8 +22,8 @@ class MechanicsTests(unittest.TestCase):
             d.qpos[0] = angle
             mujoco.mj_forward(m, d)
             r = d.geom('handle').xpos - d.xanchor[0]
-            self.assertAlmostEqual(r[1], 0)
-            self.assertAlmostEqual(np.linalg.norm(r), np.hypot(0.32, 0.30))
+            self.assertAlmostEqual(r[1], -0.14)
+            self.assertAlmostEqual(np.linalg.norm(r[[0, 2]]), np.sqrt(0.34176015**2 + 0.20**2))
             self.assertGreater(d.geom('handle').xpos[2], 0.15)
             np.testing.assert_allclose(d.xaxis[0], [0, 1, 0], atol=1e-12)
         d.qpos[0] = 0
@@ -49,3 +49,24 @@ class MechanicsTests(unittest.TestCase):
         mujoco.mj_forward(self.model, self.data)
         expected = np.array([np.cos(0.2), 0, np.sin(0.2), 0])
         np.testing.assert_allclose(self.model.body('boundary_reference').quat, expected)
+
+    def test_initial_pose_and_unchanged_rod_length(self):
+        m, d = self.model, self.data
+        mujoco.mj_forward(m, d)
+        np.testing.assert_allclose(d.xanchor[0], [0.28, 0.10, 0.20])
+        np.testing.assert_allclose(d.geom('handle').xpos, [-0.06176015, -0.04, 0.40])
+        delta = d.geom('handle').xpos - d.geom('elbow_pad').xpos
+        self.assertAlmostEqual(np.linalg.norm(delta[:2]), 0.20)
+        self.assertAlmostEqual(delta[2], 0.325)
+        for name in ('arm_left', 'arm_right'):
+            self.assertAlmostEqual(2 * m.geom(name).size[1], np.hypot(0.32, 0.22))
+
+    def test_dial_boundary_matches_grip_radial_direction(self):
+        m, d = self.model, self.data
+        set_boundary_marker(m, BrakeParameters(free_boundary=0.4))
+        d.qpos[0] = 0.4
+        mujoco.mj_forward(m, d)
+        grip_radial = (d.geom('handle').xpos - d.xanchor[0])[[0, 2]]
+        tick_radial = (d.geom('free_boundary_marker').xpos - d.xanchor[0])[[0, 2]]
+        np.testing.assert_allclose(tick_radial / np.linalg.norm(tick_radial),
+                                   grip_radial / np.linalg.norm(grip_radial))

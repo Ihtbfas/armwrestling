@@ -8,14 +8,14 @@ ARROW_METERS_PER_NM = 0.22
 def configure_camera(camera):
     """Initialize a free camera from the user's front left."""
     camera.type = mujoco.mjtCamera.mjCAMERA_FREE
-    camera.lookat[:] = [0.04, 0.05, 0.14]
-    camera.distance = 1.8
+    camera.lookat[:] = [0.04, 0.0, 0.10]
+    camera.distance = 1.7
     camera.azimuth = 125
-    camera.elevation = -25
+    camera.elevation = -35
 
 
 def set_boundary_marker(model, parameters):
-    """Rotate the static reference ray about the same +Y axis as the arm."""
+    """Rotate the shaft-mounted boundary tick about the arm's +Y axis."""
     angle = parameters.initial_angle + parameters.forward_sign * parameters.free_boundary
     model.body('boundary_reference').quat[:] = [np.cos(angle / 2), 0, np.sin(angle / 2), 0]
 
