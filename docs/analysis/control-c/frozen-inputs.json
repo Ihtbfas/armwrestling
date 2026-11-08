@@ -1,0 +1,26 @@
+{
+  "sha256": {
+    "sim/arm.xml": "a847b8423306608c0d8c4bb317559a15c2c7e27ab811d82a42474ffc201731df",
+    "sim/candidates/elbow_axis.xml": "619bc6b9d2a01c09f3dfabeb96e2fa5f839ab78fe616cd969f35c41001cdd7a5",
+    "sim/control.py": "5afd362f7dd095bbae34318626e0cd8a1ac583a4aa61967827b6ef919b2b596c",
+    "docs/analysis/fit/candidate/oblique-down.png": "b6794a772d91f7d274bf3e0aee4ab51edee599b9d42e2574878c14648ed51970",
+    "docs/analysis/fit/candidate/oblique-zero.png": "c33a0e428eefa579a0911267fc13f8425722dae1d56ab9582452bd72d2e26b7a",
+    "docs/analysis/fit/fit-comparison.pdf": "5a079b9da63dfd29b568e1bfad81a24ba0808e984a9ebdbca99d959c917b8976",
+    "docs/analysis/fit/fit-comparison.png": "5c2b403b5d501b1289733544039ee109c365956064be4550366b3a951ec873d7",
+    "docs/analysis/fit/geometry.json": "bd5fc8024577a9ad3a3ddaa7179437f3bbb0cae566cbfb86985abf52bd101a08",
+    "docs/analysis/fit/metadata.json": "efa101f3a151bf6ffce0e0eb74f22a3b713f4003176e75882ab35d68567c448e",
+    "docs/analysis/fit/paths.csv": "2f4c107c9e52f0714638efd2d868fb21dc45469b8ebca937ea2e1bd0cb4428e6",
+    "docs/analysis/fit/sensitivity.csv": "474cc10dc8878d922047e721cb535242d306971d2738e3d11cac1e86e722614b",
+    "docs/analysis/fit/summary.csv": "0a5da114c7ac1c93c9aaa3bbb6a55a3a649cbc409db049b40dd4120192d6535d"
+  },
+  "parameters": {
+    "initial_angle": 0.0,
+    "forward_sign": -1,
+    "free_boundary": 0.25,
+    "stiffness": 2.0,
+    "max_torque": 0.8,
+    "speed_transition": 0.05
+  },
+  "mujoco": "3.17.0",
+  "note": "User torques are scripted external inputs; no controller/model changes."
+}

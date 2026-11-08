@@ -1,12 +1,22 @@
 # armwrestling — MuJoCo 水平握把验证
 
+阶段安排：**A 保留默认基线，C 为优先研究候选，D 保留为分析备选**。暂不替换默认模型，不继续优化外观。新增 [候选 C 的现有控制观察](docs/control-c-observation.md)：自由区对应 q≤0.25 rad，越界线性增阻；返回在越界区仍受制动，释放不会自动回零。现有行程足以展示自由/增阻/返回，名义最大目标为 0.6 N·m，不能达到 0.8 N·m 封顶。
+
+为避开默认 0.5 N·m 输入过快触及限位的影响，可用已有输入参数观察 C：
+
+```bash
+.venv/bin/python -m sim.run --model sim/candidates/elbow_axis.xml --user-torque 0.15
+```
+
+1 下压，q≈0.4 时 0 释放，2 施力返回，接近零位 0 释放；零位不会自动停车。精确复现数据与曲线可运行 `.venv/bin/python -m sim.observe_c_control`，加 `--viewer` 可在窗口播放轻输入周期，需下述可选绘图依赖。此脚本不改 A/C 模型、控制律或原轨迹分析结果。
+
 已增加 [固定肘部与握持轨迹适配分析](docs/trajectory-fit.md)：比较四个布局，区分肘垫接触点、肘关节中心、手腕中心和握持中点。原模型仍为默认；可独立观察 `sim/candidates/elbow_axis.xml` 候选 C，不能把示例人体参数当作已确认尺寸。
 
 ```bash
 .venv/bin/python -m sim.run --model sim/candidates/elbow_axis.xml
 ```
 
-重算二维图和数据时安装可选依赖：`uv pip install --python .venv/bin/python -r sim/requirements-analysis.txt`，再运行 `.venv/bin/python -m sim.fit_analysis`。不绘图时仿真无需 Matplotlib。
+绘图可选依赖：`uv pip install --python .venv/bin/python -r sim/requirements-analysis.txt`。历史分析入口为 `.venv/bin/python -m sim.fit_analysis`，会重生成 C XML 和原轨迹数据；当前冻结阶段不需要运行它。新控制观察使用独立输出目录。不绘图时交互仿真无需 Matplotlib。
 
 单自由度被动力反馈扳手腕项目。当前 `sim/` 验证自由空间阻力控制；`real/` 只预留实机软件。
 
