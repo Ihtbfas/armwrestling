@@ -22,8 +22,8 @@ class MechanicsTests(unittest.TestCase):
             d.qpos[0] = angle
             mujoco.mj_forward(m, d)
             r = d.geom('handle').xpos - d.xanchor[0]
-            self.assertAlmostEqual(r[1], -0.14)
-            self.assertAlmostEqual(np.linalg.norm(r[[0, 2]]), np.sqrt(0.34176015**2 + 0.20**2))
+            self.assertAlmostEqual(r[1], -0.12)
+            self.assertAlmostEqual(np.linalg.norm(r[[0, 2]]), np.hypot(0.34, 0.33))
             self.assertGreater(d.geom('handle').xpos[2], 0.15)
             np.testing.assert_allclose(d.xaxis[0], [0, 1, 0], atol=1e-12)
         d.qpos[0] = 0
@@ -50,16 +50,18 @@ class MechanicsTests(unittest.TestCase):
         expected = np.array([np.cos(0.2), 0, np.sin(0.2), 0])
         np.testing.assert_allclose(self.model.body('boundary_reference').quat, expected)
 
-    def test_initial_pose_and_unchanged_rod_length(self):
+    def test_initial_raised_pose_and_rod_length(self):
         m, d = self.model, self.data
         mujoco.mj_forward(m, d)
-        np.testing.assert_allclose(d.xanchor[0], [0.28, 0.10, 0.20])
-        np.testing.assert_allclose(d.geom('handle').xpos, [-0.06176015, -0.04, 0.40])
+        np.testing.assert_allclose(d.xanchor[0], [0.34, 0.10, 0.16])
+        np.testing.assert_allclose(d.geom('handle').xpos, [0.0, -0.02, 0.49])
+        rod_axis = d.geom('arm_left').xmat.reshape(3, 3)[:, 2]
+        self.assertGreater(np.arctan2(abs(rod_axis[2]), abs(rod_axis[0])), np.deg2rad(34))
         delta = d.geom('handle').xpos - d.geom('elbow_pad').xpos
-        self.assertAlmostEqual(np.linalg.norm(delta[:2]), 0.20)
-        self.assertAlmostEqual(delta[2], 0.325)
+        self.assertAlmostEqual(np.linalg.norm(delta[:2]), 0.18)
+        self.assertAlmostEqual(delta[2], 0.39)
         for name in ('arm_left', 'arm_right'):
-            self.assertAlmostEqual(2 * m.geom(name).size[1], np.hypot(0.32, 0.22))
+            self.assertAlmostEqual(2 * m.geom(name).size[1], np.sqrt(0.34**2 + 0.12**2 + 0.25**2))
 
     def test_dial_boundary_matches_grip_radial_direction(self):
         m, d = self.model, self.data
