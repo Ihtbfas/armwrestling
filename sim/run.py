@@ -15,6 +15,17 @@ from sim.visualization import configure_camera, update_brake_arrow, set_boundary
 MODEL_PATH = Path(__file__).with_name("arm.xml")
 
 
+def keyboard_torque(keycode, magnitude, parameters):
+    """1 pushes toward winning side, 2 returns, 0 releases; other keys do nothing."""
+    if keycode == ord('1'):
+        return parameters.forward_sign * magnitude
+    if keycode == ord('2'):
+        return -parameters.forward_sign * magnitude
+    if keycode == ord('0'):
+        return 0.0
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Passive one-joint arm wrestling demo")
     parser.add_argument("--boundary", type=float, default=0.25, help="free boundary in radians")
@@ -40,21 +51,15 @@ def main():
     position_index = model.jnt_qposadr[joint_id]
     velocity_index = model.jnt_dofadr[joint_id]
     handle_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "handle")
-    input_direction = [0]
+    input_torque = [0.0]
 
     def on_key(keycode):
-        key = chr(keycode) if 0 <= keycode < 128 else ""
-        previous_direction = input_direction[0]
-        if key == "1":
-            input_direction[0] = 1
-        elif key == "2":
-            input_direction[0] = -1
-        elif key == "0":
-            input_direction[0] = 0
-        if input_direction[0] != previous_direction:
-            print(f"Keyboard input direction: {input_direction[0]:+d}", flush=True)
+        requested = keyboard_torque(keycode, args.user_torque, parameters)
+        if requested is not None and requested != input_torque[0]:
+            input_torque[0] = requested
+            print(f"Keyboard joint torque: {requested:+.3f} N m", flush=True)
 
-    print("Viewer focused: 1 = forward torque, 2 = reverse torque, 0 = release, Esc = quit", flush=True)
+    print("Viewer focused: 1 = winning/down, 2 = return/up, 0 = release; close window to quit", flush=True)
     print("Yellow dial tick = free-space boundary; angle and torques appear here every 0.25 s.", flush=True)
     print("Orange arrow = actual brake torque; drag the mouse to orbit/pan, scroll to zoom.", flush=True)
     print("Ideal passive balance: moving COM on horizontal shaft; no active gravity compensation.", flush=True)
@@ -82,7 +87,7 @@ def main():
                 angle = float(data.qpos[position_index])
                 speed = float(data.qvel[velocity_index])
                 state = brake_state(angle, speed, parameters)
-                user_torque = input_direction[0] * args.user_torque
+                user_torque = input_torque[0]
                 data.qfrc_applied[velocity_index] = user_torque + state.applied_torque
                 mujoco.mj_step(model, data)
                 # Refresh world positions after integration for the attached arrow.

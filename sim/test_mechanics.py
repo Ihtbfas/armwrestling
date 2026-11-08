@@ -47,7 +47,7 @@ class MechanicsTests(unittest.TestCase):
     def test_boundary_marker_tracks_parameter(self):
         set_boundary_marker(self.model, BrakeParameters(free_boundary=0.4))
         mujoco.mj_forward(self.model, self.data)
-        expected = np.array([np.cos(0.2), 0, np.sin(0.2), 0])
+        expected = np.array([np.cos(0.2), 0, -np.sin(0.2), 0])
         np.testing.assert_allclose(self.model.body('boundary_reference').quat, expected)
 
     def test_initial_raised_pose_and_rod_length(self):
@@ -66,7 +66,7 @@ class MechanicsTests(unittest.TestCase):
     def test_dial_boundary_matches_grip_radial_direction(self):
         m, d = self.model, self.data
         set_boundary_marker(m, BrakeParameters(free_boundary=0.4))
-        d.qpos[0] = 0.4
+        d.qpos[0] = -0.4
         mujoco.mj_forward(m, d)
         grip_radial = (d.geom('handle').xpos - d.xanchor[0])[[0, 2]]
         tick_radial = (d.geom('free_boundary_marker').xpos - d.xanchor[0])[[0, 2]]

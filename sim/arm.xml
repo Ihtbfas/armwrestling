@@ -43,7 +43,7 @@
     <geom name="brake_endcap" type="cylinder" fromto="0.34 0.405 0.16 0.34 0.42 0.16" size="0.045" material="metal"/>
     <geom name="transmission_cover" type="box" size="0.06 0.055 0.022" pos="0.34 0.29 0.16" material="frame"/>
     <!-- Shaft-mounted angle dial: dark zero tick and yellow boundary tick. -->
-    <body name="boundary_reference" pos="0.34 -0.075 0.16" quat="0.9921976672 0 0.1246747334 0">
+    <body name="boundary_reference" pos="0.34 -0.075 0.16" quat="0.9921976672 0 -0.1246747334 0">
       <geom name="boundary_dial" type="cylinder" size="0.055 0.004" quat="0.7071067811865476 0.7071067811865476 0 0" rgba="0.87 0.90 0.93 1"/>
       <geom name="free_boundary_marker" type="capsule" fromto="-0.030855970 -0.006000000 0.029948441 -0.045925164 -0.006000000 0.044574424" size="0.0035" rgba="1 0.63 0.02 1"/>
     </body>

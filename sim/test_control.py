@@ -64,19 +64,22 @@ class MujocoDynamicsTests(unittest.TestCase):
         braked_run = mujoco.MjData(model)
 
         # Stay below the mechanical joint stop, which is unrelated to the brake.
-        for _ in range(250):
-            free_run.qfrc_applied[dof] = 0.5
+        parameters = BrakeParameters()
+        forward = parameters.forward_sign
+        for _ in range(160):
+            free_run.qfrc_applied[dof] = forward * 0.5
             mujoco.mj_step(model, free_run)
 
-            state = brake_state(braked_run.qpos[qpos], braked_run.qvel[dof], BrakeParameters())
-            braked_run.qfrc_applied[dof] = 0.5 + state.applied_torque
+            state = brake_state(braked_run.qpos[qpos], braked_run.qvel[dof], parameters)
+            braked_run.qfrc_applied[dof] = forward * 0.5 + state.applied_torque
             mujoco.mj_step(model, braked_run)
 
-        self.assertGreater(free_run.qpos[qpos], 0.0)
-        self.assertGreater(braked_run.qpos[qpos], 0.0)
-        self.assertLess(braked_run.qpos[qpos], free_run.qpos[qpos])
-        self.assertGreater(braked_run.qpos[qpos], 0.25)
-        self.assertGreater(free_run.qvel[dof], 0.0)
+        self.assertGreater(forward * free_run.qpos[qpos], 0.0)
+        self.assertGreater(forward * braked_run.qpos[qpos], 0.0)
+        self.assertLess(forward * braked_run.qpos[qpos], forward * free_run.qpos[qpos])
+        self.assertGreater(forward * braked_run.qpos[qpos], 0.25)
+        self.assertGreater(forward * free_run.qvel[dof], 0.0)
+        self.assertGreater(free_run.qpos[qpos], model.jnt_range[joint_id, 0] + 0.02)
 
     def test_brake_power_stays_nonpositive_during_reversal(self):
         import mujoco
@@ -88,12 +91,12 @@ class MujocoDynamicsTests(unittest.TestCase):
         saw_reverse_in_braked_zone = False
 
         for step in range(600):
-            user_torque = 0.8 if step < 250 else -1.0
+            user_torque = parameters.forward_sign * (0.5 if step < 140 else -1.0)
             state = brake_state(data.qpos[0], data.qvel[0], parameters)
             power = state.applied_torque * data.qvel[0]
             self.assertLessEqual(power, 1e-12)
             brake_work += power * model.opt.timestep
-            if state.relative_angle > parameters.free_boundary and data.qvel[0] < -0.05:
+            if state.relative_angle > parameters.free_boundary and parameters.forward_sign * data.qvel[0] < -0.05:
                 saw_reverse_in_braked_zone = True
             data.qfrc_applied[0] = user_torque + state.applied_torque
             mujoco.mj_step(model, data)

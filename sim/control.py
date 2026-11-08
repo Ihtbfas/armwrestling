@@ -6,7 +6,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class BrakeParameters:
     initial_angle: float = 0.0
-    forward_sign: int = 1
+    forward_sign: int = -1  # Winning-side downstroke is negative joint rotation.
     free_boundary: float = 0.25
     stiffness: float = 2.0
     max_torque: float = 0.8
