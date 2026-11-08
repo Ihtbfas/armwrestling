@@ -22,13 +22,13 @@ class MechanicsTests(unittest.TestCase):
             d.qpos[0] = angle
             mujoco.mj_forward(m, d)
             r = d.geom('handle').xpos - d.xanchor[0]
-            self.assertAlmostEqual(r[1], -0.12 - .08 * np.sin(np.deg2rad(20)))
-            self.assertAlmostEqual(np.linalg.norm(r[[0, 2]]), np.hypot(0.34, .25 + .08 * np.cos(np.deg2rad(20))))
+            self.assertAlmostEqual(r[1], -0.20)
+            self.assertAlmostEqual(np.linalg.norm(r[[0, 2]]), np.hypot(0.34, 0.33))
             self.assertGreater(d.geom('handle').xpos[2], 0.15)
             np.testing.assert_allclose(d.xaxis[0], [0, 1, 0], atol=1e-12)
         d.qpos[0] = 0
         mujoco.mj_forward(m, d)
-        np.testing.assert_allclose(d.geom('handle').xmat.reshape(3, 3)[:, 2], [0, -np.sin(np.deg2rad(20)), np.cos(np.deg2rad(20))], atol=1e-9)
+        np.testing.assert_allclose(d.geom('handle').xmat.reshape(3, 3)[:, 2], [0, -1, 0], atol=1e-9)
         self.assertLess(d.geom('elbow_pad').xpos[1], d.geom('handle').xpos[1])
 
     def test_balance_has_no_gravity_torque_or_zero_input_drift(self):
@@ -53,13 +53,13 @@ class MechanicsTests(unittest.TestCase):
     def test_initial_raised_pose_and_rod_length(self):
         m, d = self.model, self.data
         mujoco.mj_forward(m, d)
-        np.testing.assert_allclose(d.xanchor[0], [0.34, -.02 + .08 * np.sin(np.deg2rad(20)), 0.16])
-        np.testing.assert_allclose(d.geom('handle').xpos, [0.0, -0.14, .41 + .08 * np.cos(np.deg2rad(20))])
+        np.testing.assert_allclose(d.xanchor[0], [0.34, .007361611466, 0.16])
+        np.testing.assert_allclose(d.geom('handle').xpos, [0.0, -.192638388534, .49])
         rod_axis = d.geom('arm_left').xmat.reshape(3, 3)[:, 2]
         self.assertGreater(np.arctan2(abs(rod_axis[2]), abs(rod_axis[0])), np.deg2rad(34))
         delta = d.geom('handle').xpos - d.geom('elbow_pad').xpos
-        self.assertAlmostEqual(np.linalg.norm(delta[:2]), 0.10)
-        self.assertAlmostEqual(delta[2], .31 + .08 * np.cos(np.deg2rad(20)))
+        self.assertAlmostEqual(np.linalg.norm(delta[:2]), .107361611466)
+        self.assertAlmostEqual(delta[2], .39)
         for name in ('arm_left', 'arm_right'):
             self.assertAlmostEqual(2 * m.geom(name).size[1], np.sqrt(0.34**2 + 0.12**2 + 0.25**2))
 

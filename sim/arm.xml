@@ -26,14 +26,14 @@
     <light pos="-1 0.8 1.4" dir="0.5 -0.3 -1" diffuse="0.25 0.25 0.25" castshadow="false"/>
     <geom name="floor" type="plane" size="3 3 0.1" pos="0 0 -0.70" material="floor_mat"/>
     <geom name="table" type="box" size="0.62 0.45 0.035" material="frame"/>
-    <geom type="box" size="0.61 0.44 0.006" pos="0 0 0.041" rgba="0.70 0.75 0.78 1"/>
+    <geom type="box" size="0.61 0.44 0.006" pos="0 0 0.041" rgba="0.70 0.75 0.78 1" name="table_top"/>
     <geom type="box" size="0.03 0.03 0.32" pos="-0.52 -0.35 -0.355" material="metal"/>
     <geom type="box" size="0.03 0.03 0.32" pos="0.52 -0.35 -0.355" material="metal"/>
     <geom type="box" size="0.03 0.03 0.32" pos="-0.52 0.35 -0.355" material="metal"/>
     <geom type="box" size="0.03 0.03 0.32" pos="0.52 0.35 -0.355" material="metal"/>
     <!-- User sits at y < -0.45; horizontal main shaft points along +Y. -->
-    <geom name="elbow_pad_base" type="box" size="0.075 0.08 0.015" pos="0 -0.24 0.062" material="frame"/>
-    <geom name="elbow_pad" type="box" size="0.085 0.09 0.023" pos="0 -0.24 0.1" rgba="0.65 0.32 0.15 1"/>
+    <geom name="elbow_pad_base" type="box" size="0.075 0.08 0.015" pos="0 -0.30 0.062" material="frame"/>
+    <geom name="elbow_pad" type="box" size="0.085 0.09 0.023" pos="0 -0.30 0.1" rgba="0.65 0.32 0.15 1"/>
     <geom name="user_edge" type="box" size="0.15 0.008 0.003" pos="0 -0.434 0.051" material="blue"/>
     <geom name="base_plate" type="box" size="0.13 0.16 0.012" pos="0.34 0.007361611466 0.061" material="blue"/>
     <geom name="bearing_front" type="box" size="0.055 0.025 0.045" pos="0.34 -0.102638388534 0.115" material="metal"/>
@@ -45,7 +45,7 @@
     <!-- Shaft-mounted angle dial: dark zero tick and yellow boundary tick. -->
     <body name="boundary_reference" pos="0.34 -0.167638388534 0.16" quat="0.9921976672 0 -0.1246747334 0">
       <geom name="boundary_dial" type="cylinder" size="0.055 0.004" quat="0.7071067811865476 0.7071067811865476 0 0" rgba="0.87 0.90 0.93 1"/>
-      <geom name="free_boundary_marker" type="capsule" fromto="-0.03107551643 -0.006 0.029720569958 -0.046251931431 -0.006 0.044235266914" size="0.0035" rgba="1 0.63 0.02 1"/>
+      <geom name="free_boundary_marker" type="capsule" fromto="-0.030855969740 -0.006000000000 0.029948441218 -0.045925164264 -0.006000000000 0.044574424139" size="0.0035" rgba="1 0.63 0.02 1"/>
     </body>
     <body name="swing_arm" pos="0.34 0.007361611466 0.16">
       <!-- Ideal PASSIVE balance: total moving COM on axis; no gravcomp or actuator.
@@ -57,12 +57,13 @@
       <geom name="arm_left" type="capsule" fromto="0 -0.055 0 -0.34 -0.175 0.25" size="0.014" material="blue"/>
       <geom name="arm_right" type="capsule" fromto="0 0.055 0 -0.34 -0.065 0.25" size="0.014" material="blue"/>
       <geom name="end_crossbar" type="capsule" fromto="-0.34 -0.195 0.25 -0.34 -0.045 0.25" size="0.022" material="metal"/>
-      <geom name="handle" type="cylinder" size="0.025 0.08" pos="-0.34 -0.147361611466 0.325175409663" material="rubber" quat="0.984807753012 0.173648177667 0 0"/>
-      <geom name="handle_cap" type="cylinder" size="0.027 0.006" pos="-0.34 -0.176775343792 0.40598897505" rgba="0.92 0.35 0.12 1" quat="0.984807753012 0.173648177667 0 0"/>
+      <geom name="handle" type="cylinder" size="0.025 0.08" pos="-0.34 -0.20 0.33" material="rubber" quat="0.7071067811865476 0.7071067811865476 0 0"/>
+      <geom name="handle_cap" type="cylinder" size="0.027 0.006" pos="-0.34 -0.286 0.33" rgba="0.92 0.35 0.12 1" quat="0.7071067811865476 0.7071067811865476 0 0"/>
       <!-- Illustrative passive balance block; actual counterweight sizing remains unknown. -->
       <geom name="balance_stem" type="capsule" fromto="0 0 0 0.055 0 -0.025" size="0.012" material="metal"/>
       <geom name="balance_block" type="box" size="0.02 0.07 0.018" pos="0.055 0 -0.025" material="frame"/>
+      <geom name="grip_support" type="capsule" fromto="-0.34 -0.12 0.25 -0.34 -0.12 0.33" size="0.014" material="metal"/>
     </body>
-    <geom name="zero_tick" type="capsule" fromto="0.321932839285 -0.175638388534 0.177279401138 0.306033737856 -0.175638388534 0.19248527414" size="0.0015" rgba="0.10 0.15 0.20 1"/>
+    <geom name="zero_tick" type="capsule" fromto="0.322060482709 -0.175638388534 0.177411884429 0.306273707493 -0.175638388534 0.192734342727" size="0.0015" rgba="0.10 0.15 0.20 1"/>
   </worldbody>
 </mujoco>
