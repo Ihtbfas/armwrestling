@@ -28,7 +28,8 @@ class WinningDirectionTests(unittest.TestCase):
         model = mujoco.MjModel.from_xml_path(str(Path(__file__).with_name('arm.xml')))
         data = mujoco.MjData(model)
         saw_free, saw_resistance = False, False
-        previous_height = 0.49
+        mujoco.mj_forward(model, data)
+        previous_height = float(data.geom('handle').xpos[2])
         for _ in range(160):
             mujoco.mj_forward(model, data)
             height = float(data.geom('handle').xpos[2])
@@ -54,7 +55,7 @@ class WinningDirectionTests(unittest.TestCase):
         data = mujoco.MjData(model)
         data.qpos[0] = -0.25
         mujoco.mj_forward(model, data)
-        self.assertAlmostEqual(data.geom('handle').xpos[2], 0.3956237530, places=9)
+        self.assertAlmostEqual(data.geom('handle').xpos[2], .16 - .34 * np.sin(.25) + (.25 + .08 * np.cos(np.deg2rad(20))) * np.cos(.25), places=9)
         self.assertLess(model.body('boundary_reference').quat[2], 0)
         radial = (data.geom('handle').xpos - data.xanchor[0])[[0, 2]]
         tick = (data.geom('free_boundary_marker').xpos - data.xanchor[0])[[0, 2]]
