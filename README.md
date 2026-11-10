@@ -1,5 +1,11 @@
 # armwrestling — 单自由度被动力反馈
 
+## STM32 串口 V1 修订草案（待双方确认）
+
+[串口协议 V1](docs/stm32-serial-v1.md) 已根据下位机组审阅修订：修复坏帧导致的组帧阻塞、增加 100 ms 组帧超时；明确 200 ms 默认/本地上限与 `valid_for_ms` 的关系；新增 SESSION_OPEN/SESSION_ACK 及 64 位会话编号，防止旧 ENABLE 在重连后误生效，并将故障解除与人工重新使能分开；统一主轴侧目标阻力单位。Python 编解码参考位于 [common/serial_protocol.py](common/serial_protocol.py)，含 13 项协议测试和五个十六进制样例。
+
+**本次仍未实现真实 COM 串口或 STM32 固件状态机。** 新会话流程需下位机组实施确认；VR UDP 9102、模拟 STM32 TCP 9101、MuJoCo 和公共阻力控制代码不变。
+
 ## STM32F405RGT6 ↔ PC 串口协议 V1（待与下位机组确认）
 
 已准备 [STM32 串口 V1 协议](docs/stm32-serial-v1.md) 和无额外依赖的 [Python 编码/解码参考实现](common/serial_protocol.py)。协议采用帧头 + 版本/类型/序号 + 长度 + 二进制数据 + CRC16，统一主轴角度/速度、可选测力、设备状态与目标制动幅值；USART+USB转串口与原生USB CDC可传相同字节。含三个逐字节测试样例和 8 项协议测试。
