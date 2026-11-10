@@ -1,5 +1,11 @@
 # armwrestling — 单自由度被动力反馈
 
+## STM32F405RGT6 ↔ PC 串口协议 V1（待与下位机组确认）
+
+已准备 [STM32 串口 V1 协议](docs/stm32-serial-v1.md) 和无额外依赖的 [Python 编码/解码参考实现](common/serial_protocol.py)。协议采用帧头 + 版本/类型/序号 + 长度 + 二进制数据 + CRC16，统一主轴角度/速度、可选测力、设备状态与目标制动幅值；USART+USB转串口与原生USB CDC可传相同字节。含三个逐字节测试样例和 8 项协议测试。
+
+**目前只冻结设计草案，尚未接真实串口或 STM32 固件。** 当前模拟 STM32 仍用 TCP 9101；VR ↔ PC 已是 UDP 9102。组内确认协议、方向、力传感器标定和真实失联安全动作后，再在 real/ 加入串口适配器，不改变 common/control.py。
+
 ## PC 通信桥接（VR UDP 更新）
 
 新增 `common/`：唯一公共控制实现、JSON 消息格式、最新状态协调，以及 STM32 TCP / VR UDP 桥接。`sim/` 保留 MuJoCo，并增加模拟 STM32 / VR；`real/` 预留真实接口，本次未修改。原 A 默认基线、C 候选和 D 分析结果保持不变。
