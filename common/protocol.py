@@ -1,4 +1,4 @@
-"""UTF-8 JSON lines, bounded nonblocking sockets, and V1 input validation."""
+"""Bounded JSON messages: TCP newline framing and one-object UDP datagrams."""
 import json
 import math
 
@@ -11,6 +11,23 @@ def encode(message):
 
 def _reject_constant(value):
     raise ValueError('nonfinite JSON number: '+value)
+
+
+def encode_datagram(message):
+    """One complete JSON object in one UDP datagram; no newline delimiter."""
+    packet = encode(message)[:-1]
+    if len(packet) > MAX_LINE:
+        raise ValueError('UDP message exceeds 8192 bytes')
+    return packet
+
+
+def decode_datagram(packet):
+    if not packet or len(packet) > MAX_LINE:
+        raise ValueError('UDP message must contain 1..8192 bytes')
+    message = json.loads(packet.decode('utf-8'), parse_constant=_reject_constant)
+    if not isinstance(message, dict):
+        raise ValueError('UDP message must be a JSON object')
+    return message
 
 
 class LineBuffer:

@@ -1,4 +1,4 @@
-"""Three genuine TCP subprocesses plus malformed-client recovery; no MuJoCo."""
+"""Three genuine TCP/UDP subprocesses plus malformed-client recovery; no MuJoCo."""
 import json
 from pathlib import Path
 import socket
@@ -8,7 +8,7 @@ import tempfile
 import time
 import unittest
 
-from common.protocol import LineBuffer, encode
+from common.protocol import LineBuffer, encode, encode_datagram
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,7 +21,8 @@ class ProcessTests(unittest.TestCase):
         try:
             ready = json.loads(pc.stdout.readline())
             with socket.create_connection(('127.0.0.1', ready['stm_port']), timeout=1) as stm, \
-                 socket.create_connection(('127.0.0.1', ready['vr_port']), timeout=1) as vr_sock:
+                 socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as vr_sock:
+                vr_sock.connect(('127.0.0.1', ready['vr_port']))
                 parser = LineBuffer()
                 def until(reason):
                     deadline = time.monotonic()+1
@@ -32,18 +33,16 @@ class ProcessTests(unittest.TestCase):
                     self.fail('did not receive '+reason)
                 message = dict(v=1, type='vr_update', seq=0, character_id='demo', match_state='running',
                                stiffness_nm_per_rad=2., max_torque_nm=.8)
-                payload = encode(message)
-                vr_sock.sendall(payload[:8])
-                vr_sock.sendall(payload[8:])
+                vr_sock.send(encode_datagram(message))
                 device = dict(v=1, type='telemetry', seq=0, angle_rad=-.4,
                               velocity_rad_s=-.2, device_status='ready')
                 stm.sendall(encode(device))
                 self.assertAlmostEqual(until('running')['target_torque_nm'], .3)
                 message.update(seq=1, match_state='paused')
-                vr_sock.sendall(encode(message))
+                vr_sock.send(encode_datagram(message))
                 self.assertEqual(until('match_paused')['mode'], 'stop')
                 message.update(seq=2, match_state='running')
-                vr_sock.sendall(encode(message))
+                vr_sock.send(encode_datagram(message))
                 # Keep telemetry fresh while VR is connected but silent.
                 for seq in range(1, 16):
                     device['seq'] = seq
@@ -51,7 +50,7 @@ class ProcessTests(unittest.TestCase):
                     time.sleep(.02)
                 self.assertEqual(until('vr_timeout')['target_torque_nm'], 0)
                 message['seq'] = 3
-                vr_sock.sendall(encode(message))
+                vr_sock.send(encode_datagram(message))
                 self.assertEqual(until('telemetry_timeout')['mode'], 'stop')
         finally:
             pc.terminate()
@@ -77,9 +76,8 @@ class ProcessTests(unittest.TestCase):
                 self.assertTrue(pc_path.read_text().strip(), 'bridge did not announce ports')
                 ready = json.loads(pc_path.read_text().splitlines()[0])
                 # Bad framing must only drop this peer, leaving listeners alive.
-                with socket.create_connection(('127.0.0.1', ready['vr_port']), timeout=1) as bad:
-                    bad.sendall(b'{bad json}\n')
-                    self.assertEqual(bad.recv(1), b'')
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as bad:
+                    bad.sendto(b'{bad json}', ('127.0.0.1', ready['vr_port']))
                 stm, stm_path = start('stm.log', 'sim.mock_stm32', '--port', str(ready['stm_port']),
                                       '--duration', '4.4')
                 vr, vr_path = start('vr.log', 'sim.mock_vr', '--port', str(ready['vr_port']),
@@ -91,7 +89,7 @@ class ProcessTests(unittest.TestCase):
                 self.assertTrue(any(r.get('event')=='rejected' for r in pc_rows))
                 self.assertTrue(any(r.get('reason')=='running' and r.get('target_torque_nm', 0)>0
                                     for r in pc_rows))
-                self.assertTrue(any(r.get('reason')=='vr_missing' for r in pc_rows))
+                self.assertTrue(any(r.get('reason')=='vr_timeout' for r in pc_rows))
                 self.assertTrue(any(r.get('type')=='status' and r.get('angle_rad') is not None
                                     and r.get('character_id')=='demo' for r in vr_rows))
                 snapshots = [r for r in stm_rows if r.get('type')=='stm32_snapshot']

@@ -1,11 +1,11 @@
-"""VR TCP client: character parameters/match heartbeat in, latest PC state out."""
+"""VR UDP client: send character/match heartbeat, receive latest PC state."""
 import argparse
 import select
 import socket
 import time
 
 from common.bridge import log, positive
-from common.protocol import JsonSocket, envelope, validate_incoming
+from common.protocol import MAX_LINE, decode_datagram, encode_datagram, envelope, validate_incoming
 
 
 def main():
@@ -31,38 +31,46 @@ def main():
             now = time.monotonic()
             if peer is None and now >= next_connect:
                 try:
-                    peer = JsonSocket(socket.create_connection((args.host, args.port), timeout=.2))
+                    peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    peer.connect((args.host, args.port))
+                    peer.setblocking(False)
                     message['seq'] = 0
                     next_send = now
-                    log(dict(event='connected', role='vr'))
+                    log(dict(event='udp_client_open', role='vr'))
                 except OSError:
+                    if peer is not None:
+                        peer.close()
+                    peer = None
                     next_connect = now+.5
             if peer is not None:
                 try:
                     if args.demo_states:
                         message['match_state'] = 'running' if (now-start)%4 < 3 else 'paused'
                     if now >= next_send:
-                        peer.queue(message)
+                        payload = encode_datagram(message)
+                        if peer.send(payload) != len(payload):
+                            raise OSError('incomplete UDP send')
                         message['seq'] += 1
-                        next_send = now+.2  # Heartbeat even when match/character do not change.
-                    peer.flush()
-                    if select.select([peer.socket], [], [], 0)[0]:
-                        for status in peer.receive():
-                            envelope(status, 'status')
-                            if now >= next_log:
-                                log(dict(status, elapsed_s=round(now-start, 3)))
-                                next_log = now+.5
-                except (OSError, EOFError, ValueError, RecursionError) as error:
-                    peer.socket.close()
+                        next_send = now+.2
+                    if select.select([peer], [], [], 0)[0]:
+                        status = decode_datagram(peer.recv(MAX_LINE+1))
+                        envelope(status, 'status')
+                        if now >= next_log:
+                            log(dict(status, elapsed_s=round(now-start, 3)))
+                            next_log = now+.5
+                except BlockingIOError:
+                    pass  # Retry on the next loop; heartbeat is not considered sent.
+                except (OSError, ValueError, UnicodeError) as error:
+                    peer.close()
                     peer = None
-                    next_connect = now+.5
+                    next_connect = time.monotonic()+.5
                     log(dict(event='disconnected', role='vr', reason=str(error)))
             time.sleep(.005)
     except KeyboardInterrupt:
         pass
     finally:
         if peer is not None:
-            peer.socket.close()
+            peer.close()
 
 
 if __name__ == '__main__':
