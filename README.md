@@ -1,5 +1,11 @@
 # armwrestling — 单自由度被动力反馈
 
+## VR ↔ PC UDP 最小接口 V0.1
+
+已与 VR 组初步约定：VR → PC 仅传角色编号 `character_id` 与比赛状态 `match_state`；PC → VR 仅传机械角度 `angle_rad`、控制模式 `mode`、状态原因 `reason`。两端消息另含 `v/type/seq`；**不传角速度和阻力参数**，PC 内部仍使用角速度和原来的固定阻力参数计算。端口 UDP 9102，频率 VR 心跳约 200 ms、PC 状态约 50 Hz。完整精简协议见 [docs/vr-udp-v01.md](docs/vr-udp-v01.md)。
+
+
+
 ## STM32 串口 V1 修订草案（待双方确认）
 
 [串口协议 V1](docs/stm32-serial-v1.md) 已根据下位机组审阅修订：修复坏帧导致的组帧阻塞、增加 100 ms 组帧超时；明确 200 ms 默认/本地上限与 `valid_for_ms` 的关系；新增 SESSION_OPEN/SESSION_ACK 及 64 位会话编号，防止旧 ENABLE 在重连后误生效，并将故障解除与人工重新使能分开；统一主轴侧目标阻力单位。Python 编解码参考位于 [common/serial_protocol.py](common/serial_protocol.py)，含 13 项协议测试和五个十六进制样例。
@@ -32,16 +38,16 @@ py -3 -m sim.mock_stm32
 py -3 -m sim.mock_vr --demo-states
 ```
 
-默认 PC 监听 `127.0.0.1:9101`（模拟 STM32，TCP）和 `127.0.0.1:9102`（VR，UDP）。按 Ctrl+C 退出；模拟客户端支持重连，`--duration 10` 可定时退出。模拟 STM32 发送角度/速度并用收到的制动幅值参与动力学；VR 心跳传角色刚度、力矩上限和比赛状态，接收真实角度。`--demo-states` 周期切换运行/暂停，日志可观察制动力矩和状态变化。
+默认 PC 监听 `127.0.0.1:9101`（模拟 STM32，TCP）和 `127.0.0.1:9102`（VR，UDP）。按 Ctrl+C 退出；模拟客户端支持重连，`--duration 10` 可定时退出。模拟 STM32 发送角度/速度并用收到的制动幅值参与动力学；VR 心跳传角色编号和比赛状态，接收真实角度。`--demo-states` 周期切换运行/暂停，日志可观察制动力矩和状态变化。
 
 模拟 STM32 TCP 采用 **UTF-8 JSON + 换行**；VR UDP 采用 **每个数据报一个 UTF-8 JSON 对象（不需要换行）**。消息含 `v=1`、消息类型和递增 `seq`，角度 rad、速度 rad/s、力矩 N·m。四种消息：
 
 | 方向 / 类型 | 主要字段 |
 | --- | --- |
 | STM32 → PC / `telemetry` | `angle_rad`, `velocity_rad_s`, `device_status` |
-| VR → PC / `vr_update` | `character_id`, `match_state`, `stiffness_nm_per_rad`, `max_torque_nm` |
+| VR → PC / `vr_update` | `character_id`, `match_state` |
 | PC → STM32 / `brake_command` | `mode`, `reason`, `target_torque_nm`, `brake_torque_nm`, `valid_for_ms` |
-| PC → VR / `status` | 角度/速度/q、目标与采样力矩、数据新鲜度、角色/比赛状态 |
+| PC → VR / `status` | `angle_rad`（允许 null）、`mode`、`reason` |
 
 PC 不等待 VR 与控制同步；遥测超过 0.25 s、VR 超过 1 s、断连/设备故障/比赛非运行状态均停止模拟输出，设备还独立检查 200 ms 指令有效期。有符号力矩是 PC 采样结果，模拟设备按当前速度重新确定阻碍方向，避免延迟换向助推。**模拟零力矩不等于实机安全电流；真实安全策略和标定仍待确认。** Windows 使用跨平台标准库实现，本次实际执行验证环境为 Ubuntu。
 

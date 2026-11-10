@@ -48,8 +48,7 @@ class UdpTests(unittest.TestCase):
                     seq += 1
                 def update(vr_sock, no, state='running'):
                     vr_sock.send(encode_datagram(dict(v=1, type='vr_update', seq=no,
-                                          character_id='demo', match_state=state,
-                                          stiffness_nm_per_rad=2., max_torque_nm=.8)))
+                                          character_id='demo', match_state=state)))
                 def wait_status(predicate, period=.8):
                     end = time.monotonic()+period
                     while time.monotonic() < end:
@@ -66,15 +65,16 @@ class UdpTests(unittest.TestCase):
                 telemetry()
                 update(vr, 0)
                 found = wait_status(lambda m: m.get('mode') == 'enabled')
-                self.assertAlmostEqual(found['target_torque_nm'], .3)
+                self.assertAlmostEqual(found['angle_rad'], -.4)
+                self.assertEqual(set(found), {'v', 'type', 'seq', 'angle_rad', 'mode', 'reason'})
                 # Stale/reordered packet does not override the newest pause state.
                 update(vr, 1, 'paused')
                 found = wait_status(lambda m: m['reason'] == 'match_paused')
-                self.assertEqual(found['target_torque_nm'], 0)
+                self.assertEqual(found['mode'], 'stop')
                 update(vr, 0, 'running')
                 update(other, 10, 'running')
                 found = wait_status(lambda m: m['reason'] == 'match_paused')
-                self.assertEqual(found['match_state'], 'paused')
+                self.assertEqual(found['reason'], 'match_paused')
                 # Wait for first sender to expire, then allow another sender with seq=0.
                 until = time.monotonic()+.5
                 while time.monotonic()<until:

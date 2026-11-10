@@ -1,6 +1,4 @@
 """Latest valid device/VR data; monotonic receipt times decide freshness."""
-from dataclasses import replace
-
 from common.control import BrakeParameters, brake_state
 from common.protocol import validate_incoming
 
@@ -47,8 +45,6 @@ class BridgeState:
         parameters = BrakeParameters()
         target = actual = 0.0
         if reason == 'running':
-            parameters = replace(parameters, stiffness=vr['stiffness_nm_per_rad'],
-                                 max_torque=vr['max_torque_nm'])
             brake = brake_state(telemetry['angle_rad'], telemetry['velocity_rad_s'], parameters)
             target, actual = brake.target_torque, brake.applied_torque
         mode = 'enabled' if reason == 'running' else 'stop'
@@ -69,3 +65,9 @@ class BridgeState:
                       character_id=vr['character_id'] if fresh['vr'] else None)
         self.seq += 1
         return command, status
+
+
+def vr_payload(status):
+    """Only the fields needed by the VR V0.1 interface are sent over UDP."""
+    fields = ('v', 'type', 'seq', 'angle_rad', 'mode', 'reason')
+    return {name: status[name] for name in fields}

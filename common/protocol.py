@@ -117,8 +117,6 @@ def validate_incoming(message, role):
             raise ValueError('character_id must contain valid Unicode') from error
         if message.get('match_state') not in ('waiting', 'running', 'paused', 'finished'):
             raise ValueError('invalid match_state')
-        number(message, 'stiffness_nm_per_rad', 0, 20)
-        number(message, 'max_torque_nm', 0, 2)
     else:
         raise ValueError('unknown role')
     return message

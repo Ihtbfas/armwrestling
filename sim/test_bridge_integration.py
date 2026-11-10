@@ -31,8 +31,8 @@ class ProcessTests(unittest.TestCase):
                             if message['reason']==reason:
                                 return message
                     self.fail('did not receive '+reason)
-                message = dict(v=1, type='vr_update', seq=0, character_id='demo', match_state='running',
-                               stiffness_nm_per_rad=2., max_torque_nm=.8)
+                message = dict(v=1, type='vr_update', seq=0, character_id='demo',
+                               match_state='running')
                 vr_sock.send(encode_datagram(message))
                 device = dict(v=1, type='telemetry', seq=0, angle_rad=-.4,
                               velocity_rad_s=-.2, device_status='ready')
@@ -91,7 +91,9 @@ class ProcessTests(unittest.TestCase):
                                     for r in pc_rows))
                 self.assertTrue(any(r.get('reason')=='vr_timeout' for r in pc_rows))
                 self.assertTrue(any(r.get('type')=='status' and r.get('angle_rad') is not None
-                                    and r.get('character_id')=='demo' for r in vr_rows))
+                                    and r.get('mode')=='enabled'
+                                    and 'velocity_rad_s' not in r
+                                    and 'target_torque_nm' not in r for r in vr_rows))
                 snapshots = [r for r in stm_rows if r.get('type')=='stm32_snapshot']
                 self.assertTrue(any(abs(r['applied_torque_nm'])>0 for r in snapshots))
                 self.assertTrue(all(r['maximum_brake_power_w']<=0 for r in snapshots))

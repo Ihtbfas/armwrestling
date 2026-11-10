@@ -8,7 +8,7 @@ import socket
 import time
 
 from common.protocol import JsonSocket, MAX_LINE, decode_datagram, encode_datagram, validate_incoming
-from common.state import BridgeState
+from common.state import BridgeState, vr_payload
 
 
 def log(message):
@@ -112,7 +112,7 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                         peer.queue(command)
                     if vr_address is not None:
                         try:
-                            vr_socket.sendto(encode_datagram(status), vr_address)
+                            vr_socket.sendto(encode_datagram(vr_payload(status)), vr_address)
                         except BlockingIOError:
                             pass  # Drop this status rather than block the control loop.
                         except OSError as error:

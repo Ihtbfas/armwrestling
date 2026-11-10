@@ -1,3 +1,5 @@
+> **VR 最小接口 V0.1：** 实际 UDP 字段和联调步骤请以 [VR ↔ PC UDP V0.1](vr-udp-v01.md) 为准。下面保留较完整的桥接和 STM32 模拟说明；之前传递 VR 阻力参数、向 VR 回传角速度的约定已取消。
+
 > **真实 STM32 串口待联调：** 现已给出 [STM32 串口应用层 V1 草案](stm32-serial-v1.md)（二进制帧、CRC16、测量单位及对照字节）。本文件的 STM32 TCP 9101 仅是模拟下位机的开发接口，不能直接当作未来真实固件协议。VR ↔ PC 采用 UDP 9102，保持不变。
 
 # PC 上位机通信桥接：STM32 TCP / VR UDP
@@ -16,7 +18,7 @@ common/
 sim/
   control.py       兼容导入 common.control，旧仿真入口不变
   mock_stm32.py    模拟遥测、指令接收、本地看门狗和简单动力学
-  mock_vr.py       UDP 模拟角色参数/比赛心跳，接收真实角度与状态
+  mock_vr.py       UDP 模拟角色编号/比赛心跳，接收角度和状态与状态
   test_bridge_clients.py / test_bridge_integration.py
   ...             原 MuJoCo 仿真及 A/C 模型
 real/             本次未修改；真实适配和启动程序待接口确认
@@ -50,13 +52,13 @@ py -3 -m sim.mock_vr --demo-states
 
 模拟 STM32 约 50 Hz 上报遥测，循环施加用户力矩：下压 -0.15 N·m 3 s，返回 +0.15 N·m 3 s，释放 2 s。使用惯量约 0.054695 kg·m²、阻尼 0.04 N·m·s/rad、2 ms 子步积分和简单角度夹限 [-0.55,0.60] rad；制动指令真实参与计算。这个数值演示没有重力、接触或人体模型，夹限不是机械保护设计。
 
-模拟 VR 每 0.2 s 发送完整心跳。默认一直 `running`；`--demo-states` 则每 4 s 循环运行 3 s、暂停 1 s，可观察 PC 的 `enabled/stop` 切换。也可用：
+模拟 VR 每 0.2 s 发送包含角色编号和比赛状态的完整心跳。默认一直 `running`；`--demo-states` 则每 4 s 循环运行 3 s、暂停 1 s，可观察 PC 的 `enabled/stop` 切换。也可用：
 
 ```bash
-python3 -m sim.mock_vr --stiffness 1.5 --max-torque 0.6 --match-state running
+python3 -m sim.mock_vr --match-state running
 ```
 
-日志每约 0.5 s 输出一条 JSON：PC/VR 显示角度、q、目标/采样制动力矩、数据年龄、角色和比赛状态；STM32 显示本地实际施加力矩、制动功率和最近指令序号。看到 q>0.25 时目标阻力变大，暂停时为零，便说明链路在工作。只启动 PC 会看到 `telemetry_missing`，不是程序卡住。
+日志每约 0.5 s 输出一条 JSON：PC 本地日志保留详细控制诊断数据；VR 仅接收角度、运行状态和原因；STM32 显示本地模拟力矩、制动功率和最近指令序号。看到 q>0.25 时目标阻力变大，暂停时为零，便说明链路在工作。只启动 PC 会看到 `telemetry_missing`，不是程序卡住。
 
 ## 消息协议
 
@@ -75,10 +77,10 @@ python3 -m sim.mock_vr --stiffness 1.5 --max-torque 0.6 --match-state running
 **VR → PC，vr_update：**
 
 ```json
-{"v":1,"type":"vr_update","seq":3,"character_id":"demo","match_state":"running","stiffness_nm_per_rad":2.0,"max_torque_nm":0.8}
+{"v":1,"type":"vr_update","seq":3,"character_id":"demo","match_state":"running"}
 ```
 
-`character_id` 1..64 个有效 Unicode 字符（拒绝孤立代理码）；`match_state` 为 `waiting/running/paused/finished`。本版仅将刚度和上限映射到原控制参数；刚度校验 [0,20]、力矩上限 [0,2]，这些也是演示协议范围，不是实机标定或安全限值。零位、获胜方向、自由边界和低速过渡仍用原默认值，不由 VR 修改。网络仍用 UTF-8，终端日志则对非 ASCII 字符使用 JSON 转义，避免 Windows 旧控制台编码导致输出失败。
+`character_id` 1..64 个有效 Unicode 字符（拒绝孤立代理码）；`match_state` 为 `waiting/running/paused/finished`。VR 不再传阻力刚度或力矩上限，PC 始终使用 `common/control.py` 的默认阻力参数；角色编号暂用于记录，不改变人物策略。零位、获胜方向、自由边界和低速过渡仍采用原默认值。网络仍用 UTF-8，终端日志则对非 ASCII 字符使用 JSON 转义，避免 Windows 旧控制台编码导致输出失败。
 
 **PC → STM32，brake_command：**
 
@@ -93,10 +95,10 @@ python3 -m sim.mock_vr --stiffness 1.5 --max-torque 0.6 --match-state running
 **PC → VR，status：**
 
 ```json
-{"v":1,"type":"status","seq":45,"mode":"enabled","reason":"running","angle_rad":-0.4,"velocity_rad_s":-0.2,"q_rad":0.4,"target_torque_nm":0.3,"brake_torque_nm":0.3,"telemetry_seq":12,"telemetry_fresh":true,"vr_fresh":true,"telemetry_age_ms":10.0,"vr_age_ms":80.0,"match_state":"running","character_id":"demo"}
+{"v":1,"type":"status","seq":45,"angle_rad":-0.4,"mode":"enabled","reason":"running"}
 ```
 
-过期遥测的角度、速度、q 和 telemetry_seq 返回 `null`；没有收到过数据时 age 也为 `null`。VR 过期时其 match_state/character_id 返回 `null`。消费端必须处理 nullable 数值。终端日志会附加 `elapsed_s`，它不是必需的网络字段。桥接状态没有自动判胜 AI；比赛状态以 VR 为准。
+发送给 VR 的 UDP 仅包含 `v/type/seq/angle_rad/mode/reason` 六个字段，**不发送角速度、相对角度、目标力矩或内部诊断字段**。当设备遥测缺失或超过有效期时 `angle_rad` 为 `null`。PC 本地日志仍保留角速度、相对角度、目标力矩、数据年龄、角色等诊断信息；这些不是 VR 网络接口。当前比赛状态由 VR 发出，不自动判胜。
 
 ## 控制与超时
 
@@ -130,7 +132,7 @@ STM32 TCP 的错误 JSON、字段或序号会关闭对应连接并清空旧状�
 
 ## 交接给 VR / 下位机同学
 
-团结引擎 C# 可使用 `UdpClient`：向 PC 的 `127.0.0.1:9102` 发送单个 JSON 数据报（无换行），并用同一个 UDP socket 的本地端口接收 PC 回传的完整 `status` 数据报。建议后台接收，主线程仅消费最新状态，不在画面主线程等待网络。按约 0.2 s 周期发送完整 `vr_update`（含 `seq`、角色和 `match_state`），而不是仅在变化时发送一次。不要在渲染主线程同步等待网络。发送 UTF-8 无 BOM，以 `\n` 分隔；反序列化时保留上述数值/布尔/null 类型。客户端只需处理本节协议，没有 Python 专用序列化。UDP 不保证必达与顺序，VR 需按 `seq` 舍弃过期状态，并用心跳重复关键对战状态；未来若加入不可重放的单次事件，再单独设计确认机制。
+团结引擎 C# 可使用 `UdpClient`：向 PC 的 `127.0.0.1:9102` 发送单个 JSON 数据报（**无换行**），并用同一个 UDP socket 的本地端口接收 PC 的 `status` 数据报。后台接收并将最新角度交给主线程，避免阻塞画面。按约 0.2 s 周期重复发送完整的 `vr_update`（含 `seq`、`character_id` 和 `match_state`），不要只在状态变化时发送。UTF-8 无 BOM，每个数据报是一条 JSON 消息。客户端只需处理本节协议，没有 Python 专用序列化。UDP 不保证必达与顺序，VR 需按 `seq` 舍弃过期状态，并用心跳重复关键对战状态；未来若加入不可重放的单次事件，再单独设计确认机制。
 
 当前同机使用 127.0.0.1，无需开放 LAN。若以后跨电脑连接，才调整 PC `--host` 和客户端目标地址并检查 Windows 防火墙；本版无身份认证与加密，也没有多 VR 客户端同时控制能力，不建议直接暴露到公网。
 
@@ -157,3 +159,8 @@ Ubuntu 实际三进程运行的 [原始日志与汇总](analysis/bridge-v01/summ
 - 新增 `sim/test_vr_udp.py`，覆盖 UTF-8 JSON 单包、错误包、UDP 端到端、暂停、重复和乱序序号、心跳超时以及新发送端接管。旧的 `sim/test_bridge_integration.py` 亦改为通过 UDP 模拟 VR。
 - 可只用 Python 标准库运行：`python3 -m unittest common.test_bridge sim.test_bridge_clients sim.test_bridge_integration sim.test_vr_udp -v`；Windows 可将 `python3` 换为 `py -3`。尚未在真实 Windows/团结引擎中联调。
 - `docs/analysis/bridge-v01/` 保留 TCP 历史日志，不修改原始验证记录。UDP 事件确认、实际串口帧协议与实机保护留待双方接口确定。
+
+## VR V0.1 精简接口（2026-11-10）
+
+经确认，UDP 9102 的 VR 输入仅需 `v,type,seq,character_id,match_state`；返回 VR 的状态仅需 `v,type,seq,angle_rad,mode,reason`。角速度仍在 PC 内部用于控制计算，不传给 VR。阻力参数暂由 PC 默认管理，VR 旧版附加字段会被忽略。接口示例、频率与状态规则见 [VR ↔ PC UDP V0.1](vr-udp-v01.md)。
+

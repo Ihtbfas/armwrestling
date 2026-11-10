@@ -7,7 +7,7 @@ import unittest
 
 from common.control import BrakeParameters, brake_state, passive_torque
 from common.protocol import JsonSocket, LineBuffer, encode, validate_incoming
-from common.state import BridgeState
+from common.state import BridgeState, vr_payload
 
 
 def telemetry(seq=0, angle=-0.4, speed=-0.2, status='ready'):
@@ -17,7 +17,7 @@ def telemetry(seq=0, angle=-0.4, speed=-0.2, status='ready'):
 
 def vr(seq=0, match='running'):
     return dict(v=1, type='vr_update', seq=seq, character_id='demo',
-                match_state=match, stiffness_nm_per_rad=2.0, max_torque_nm=0.8)
+                match_state=match)
 
 
 class SharedControlTests(unittest.TestCase):
@@ -32,7 +32,7 @@ class SharedControlTests(unittest.TestCase):
 
 class ProtocolTests(unittest.TestCase):
     def test_invalid_unicode_identifier_cannot_crash_pc_output(self):
-        payload = b'{"v":1,"type":"vr_update","seq":0,"character_id":"\\ud800","match_state":"running","stiffness_nm_per_rad":2,"max_torque_nm":0.8}\n'
+        payload = b'{"v":1,"type":"vr_update","seq":0,"character_id":"\\ud800","match_state":"running"}\n'
         message = LineBuffer().feed(payload)[0]
         with self.assertRaises(ValueError):
             validate_incoming(message, 'vr')
@@ -79,8 +79,7 @@ class ProtocolTests(unittest.TestCase):
         for message in cases:
             with self.subTest(message=message), self.assertRaises(ValueError):
                 validate_incoming(message, 'stm32')
-        for field, value in [('stiffness_nm_per_rad', -1), ('max_torque_nm', 3),
-                             ('match_state', 'invalid'), ('character_id', '')]:
+        for field, value in [('match_state', 'invalid'), ('character_id', '')]:
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_incoming(dict(vr(), **{field:value}), 'vr')
 
@@ -100,6 +99,10 @@ class StateTests(unittest.TestCase):
         self.assertEqual(status['angle_rad'], -0.4)
         self.assertEqual(status['character_id'], 'demo')
         self.assertEqual(status['match_state'], 'running')
+        self.assertEqual(vr_payload(status), {
+            'v': 1, 'type': 'status', 'seq': status['seq'],
+            'angle_rad': -0.4, 'mode': 'enabled', 'reason': 'running'
+        })
 
     def test_missing_stale_fault_and_paused_inputs_stop_output(self):
         cases = [(BridgeState(), 10.0, 'telemetry_missing')]
@@ -137,15 +140,17 @@ class StateTests(unittest.TestCase):
         state.receive('stm32', telemetry(), 10.03)
         self.assertEqual(state.outputs(10.04)[0]['mode'], 'enabled')
 
-    def test_free_space_return_and_character_parameter_update(self):
+    def test_free_space_return_and_fixed_pc_parameters(self):
         state = self.ready()
         state.receive('stm32', telemetry(seq=1, angle=-0.2), 10.01)
         self.assertEqual(state.outputs(10.02)[0]['target_torque_nm'], 0)
-        state.receive('vr', dict(vr(seq=1), stiffness_nm_per_rad=1.0), 10.03)
+        # Legacy extra fields are ignored; VR never controls the brake law.
+        state.receive('vr', dict(vr(seq=1), stiffness_nm_per_rad=1.0,
+                                 max_torque_nm=0.2), 10.03)
         state.receive('stm32', telemetry(seq=2, angle=-0.4, speed=0.2), 10.03)
         command, _ = state.outputs(10.04)
-        self.assertAlmostEqual(command['target_torque_nm'], 0.15)
-        self.assertAlmostEqual(command['brake_torque_nm'], -0.15)
+        self.assertAlmostEqual(command['target_torque_nm'], 0.3)
+        self.assertAlmostEqual(command['brake_torque_nm'], -0.3)
 
 
 if __name__ == '__main__':
