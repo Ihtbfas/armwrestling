@@ -1,4 +1,45 @@
-# armwrestling — MuJoCo 水平握把验证
+# armwrestling — 单自由度被动力反馈
+
+## PC 通信桥接 V0.1
+
+新增 `common/`：唯一公共控制实现、JSON 消息格式、最新状态协调和 PC TCP 桥接。`sim/` 保留 MuJoCo，并增加模拟 STM32 / VR；`real/` 预留真实接口，本次未修改。原 A 默认基线、C 候选和 D 分析结果保持不变。
+
+**通信演示只需 Python 3.10+ 标准库，无需安装 MuJoCo。** Ubuntu 三个终端都进入 `/home/lyf/armwrestling`，分别执行：
+
+```bash
+python3 -m common.bridge
+python3 -m sim.mock_stm32
+python3 -m sim.mock_vr --demo-states
+```
+
+Windows PowerShell 三个终端都进入仓库根目录（如 `cd "$HOME\armwrestling"`），分别执行：
+
+```powershell
+py -3 -m common.bridge
+py -3 -m sim.mock_stm32
+py -3 -m sim.mock_vr --demo-states
+```
+
+默认 PC 监听 `127.0.0.1:9101`（STM32）和 `127.0.0.1:9102`（VR）。按 Ctrl+C 退出；模拟客户端支持重连，`--duration 10` 可定时退出。模拟 STM32 发送角度/速度并用收到的制动幅值参与动力学；VR 心跳传角色刚度、力矩上限和比赛状态，接收真实角度。`--demo-states` 周期切换运行/暂停，日志可观察制动力矩和状态变化。
+
+协议为 **UTF-8 JSON + 换行**，含 `v=1`、消息类型和递增 `seq`，角度 rad、速度 rad/s、力矩 N·m。四种消息：
+
+| 方向 / 类型 | 主要字段 |
+| --- | --- |
+| STM32 → PC / `telemetry` | `angle_rad`, `velocity_rad_s`, `device_status` |
+| VR → PC / `vr_update` | `character_id`, `match_state`, `stiffness_nm_per_rad`, `max_torque_nm` |
+| PC → STM32 / `brake_command` | `mode`, `reason`, `target_torque_nm`, `brake_torque_nm`, `valid_for_ms` |
+| PC → VR / `status` | 角度/速度/q、目标与采样力矩、数据新鲜度、角色/比赛状态 |
+
+PC 不等待 VR 与控制同步；遥测超过 0.25 s、VR 超过 1 s、断连/设备故障/比赛非运行状态均停止模拟输出，设备还独立检查 200 ms 指令有效期。有符号力矩是 PC 采样结果，模拟设备按当前速度重新确定阻碍方向，避免延迟换向助推。**模拟零力矩不等于实机安全电流；真实安全策略和标定仍待确认。** Windows 使用跨平台标准库实现，本次实际执行验证环境为 Ubuntu。
+
+[完整协议、字段范围、错误处理、三终端说明与验证记录](docs/pc-bridge.md)。仅运行桥接测试：
+
+```bash
+python3 -m unittest common.test_bridge sim.test_bridge_clients sim.test_bridge_integration -v
+```
+
+## MuJoCo 阶段记录
 
 阶段安排：**A 保留默认基线，C 为优先研究候选，D 保留为分析备选**。暂不替换默认模型，不继续优化外观。新增 [候选 C 的现有控制观察](docs/control-c-observation.md)：自由区对应 q≤0.25 rad，越界线性增阻；返回在越界区仍受制动，释放不会自动回零。现有行程足以展示自由/增阻/返回，名义最大目标为 0.6 N·m，不能达到 0.8 N·m 封顶。
 
@@ -18,7 +59,7 @@
 
 绘图可选依赖：`uv pip install --python .venv/bin/python -r sim/requirements-analysis.txt`。历史分析入口为 `.venv/bin/python -m sim.fit_analysis`，会重生成 C XML 和原轨迹数据；当前冻结阶段不需要运行它。新控制观察使用独立输出目录。不绘图时交互仿真无需 Matplotlib。
 
-单自由度被动力反馈扳手腕项目。当前 `sim/` 验证自由空间阻力控制；`real/` 只预留实机软件。
+单自由度被动力反馈扳手腕项目。`sim/` 验证自由空间阻力控制；`common/` 存放共用算法和 PC 桥接，`real/` 只预留实机软件。
 
 ## 安装与启动
 
@@ -92,7 +133,7 @@ XML 显式指定运动组件质量 1 kg、质心在主轴、主轴等效惯量�
 
 ## 控制律与阻力可视化
 
-`sim/control.py` 保持原控制律，且不依赖 MuJoCo：
+`common/control.py` 存放唯一控制实现，`sim/control.py` 保留兼容导入；原控制律不变，且不依赖 MuJoCo：
 
 ```text
 q = s(θ - θ0)
@@ -111,10 +152,10 @@ M(q) = min(Mmax, K × max(0, q - qb))
 ## 验证与限制
 
 ```bash
-.venv/bin/python -m unittest discover -s sim -p 'test_*.py' -v
+.venv/bin/python -m unittest discover -v
 ```
 
-共 30 项测试：原有自由区、线性增长、封顶、零速过渡、方向和制动功率测试；另检查水平轴、双杆刚性连接、圆弧轨迹、肘垫与握把关系、多个角度下无重力漂移、边界更新、箭头方向/比例/隐藏及自由相机。
+共 47 项测试：原有 30 项控制/MuJoCo 测试，包括自由区、线性增长、封顶、零速过渡、方向和制动功率，以及机械轨迹和可视化；另有 17 项桥接协议、状态、看门狗及真实 TCP 子进程测试。
 
 实际打开查看器，从用户正面、前臂侧面、斜俯视运行下压/返回，检查三个零位视角和同相机下压图；另在完整角范围验证握把朝向恒定，在负角全行程验证几何间隙。人体全行程合理性未作为已通过项目。自动脚本输入用于复现，未把无界面测试当作窗口验证。
 

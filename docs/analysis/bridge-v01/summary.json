@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-10",
+  "python": "3.12.3",
+  "platform": "linux",
+  "separate_processes": 3,
+  "pc_duration_s": 8.5,
+  "stm32_duration_s": 9.5,
+  "vr_duration_s": 6.5,
+  "vr_demo_states": true,
+  "pc_observed_reasons": [
+    "match_paused",
+    "running",
+    "telemetry_missing",
+    "vr_missing"
+  ],
+  "maximum_pc_target_nm": 0.594658358489716,
+  "maximum_sampled_device_brake_power_w": 0.0,
+  "last_device_snapshot": {
+    "type": "stm32_snapshot",
+    "elapsed_s": 9.244,
+    "angle_rad": -0.55,
+    "velocity_rad_s": 0.0,
+    "user_torque_nm": -0.15,
+    "applied_torque_nm": 0.0,
+    "brake_power_w": 0.0,
+    "maximum_brake_power_w": 0.0,
+    "reason": "disconnected",
+    "command_seq": -1
+  },
+  "vr_received_status_samples": 13,
+  "note": "Scalar dynamics demo, not MuJoCo or hardware; snapshots logged about twice per second."
+}
