@@ -1,5 +1,12 @@
 # armwrestling — 单自由度被动力反馈
 
+## STM32 V1 虚拟串口模拟与实际串口入口
+
+新增 [虚拟串口联调说明](docs/serial-pty-demo.md)。Linux/Ubuntu 上先运行 `python3 -m sim.mock_stm32_serial --demo-arm`，程序将显示一个临时 `/dev/pts/N`；然后安装 `pyserial`，用 `python3 -m real.run --port /dev/pts/N` 运行 PC 串口 V1 控制程序，再用 `python3 -m sim.mock_vr --demo-states` 运行原 UDP VR 模拟器。三进程通过 **真正的 V1 二进制串口帧**（CRC16/会话握手/看门狗）和 **UDP 9102** 交互，原 TCP 9101 模拟仍保留作历史对照。
+
+将来在 Windows 连接实体 USB CDC / USB转串口 STM32 时，PC 使用同一个 `real.run` 入口，把端口名改为 `COM5` 等；不必改 V1 协议与控制算法。Linux PTY 不是 Windows 虚拟 COM 端口。当前新增串口模拟和测试代码，**尚未代表实体 STM32/Windows/团结引擎已经联调**；`--demo-arm` 只授权模拟器，不可用于绕过实机安全保护。
+
+
 ## VR ↔ PC UDP 最小接口 V0.1
 
 已与 VR 组初步约定：VR → PC 仅传角色编号 `character_id` 与比赛状态 `match_state`；PC → VR 仅传机械角度 `angle_rad`、控制模式 `mode`、状态原因 `reason`。两端消息另含 `v/type/seq`；**不传角速度和阻力参数**，PC 内部仍使用角速度和原来的固定阻力参数计算。端口 UDP 9102，频率 VR 心跳约 200 ms、PC 状态约 50 Hz。完整精简协议见 [docs/vr-udp-v01.md](docs/vr-udp-v01.md)。
