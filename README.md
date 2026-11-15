@@ -1,5 +1,9 @@
 # armwrestling — 单自由度被动力反馈
 
+## Windows Unity UDP 实际联调
+
+已在 Windows 11 / Unity 2022.3.62f3c1 上完成真正的 Unity Editor Play ↔ Python PC 上位机 ↔ 模拟 STM32 联调。可复制 C# 客户端和摆臂演示位于 `unity/`；启动、配置、22 项实际联调检查及移交说明见 [Windows Unity UDP 联调说明](docs/windows-unity-udp-test.md)。本次未连接头显或真实 STM32，未修改公共控制策略。
+
 ## STM32 V1 虚拟串口模拟与实际串口入口
 
 新增 [虚拟串口联调说明](docs/serial-pty-demo.md)。Linux/Ubuntu 上先运行 `python3 -m sim.mock_stm32_serial --demo-arm`，程序将显示一个临时 `/dev/pts/N`；然后安装 `pyserial`，用 `python3 -m real.run --port /dev/pts/N` 运行 PC 串口 V1 控制程序，再用 `python3 -m sim.mock_vr --demo-states` 运行原 UDP VR 模拟器。三进程通过 **真正的 V1 二进制串口帧**（CRC16/会话握手/看门狗）和 **UDP 9102** 交互，原 TCP 9101 模拟仍保留作历史对照。

@@ -1,0 +1,687 @@
+{
+  "date": "2026-11-15",
+  "result": "PASS",
+  "base_commit": "5f299d90bdd7813c532c3c79164c8f294acb2faa",
+  "environment": {
+    "os": "Windows 11 x64",
+    "unity": "2022.3.62f3c1 (1623fc0bbb97)",
+    "python": "3.11.5"
+  },
+  "execution": "Real Unity Editor batchmode EnterPlaymode/ExitPlaymode and script reload; common.bridge + sim.mock_stm32. No sim.mock_vr in Unity integration.",
+  "python_regression_tests": 19,
+  "unity_protocol_checks": 8,
+  "integration_checks": 22,
+  "editor_snapshots": 95,
+  "valid_angle_range_rad": [
+    -0.55,
+    0.6
+  ],
+  "maximum_pose_mapping_error_degrees": 0.0,
+  "source_ports": [
+    56698,
+    56699,
+    62572,
+    62573
+  ],
+  "observed_initial_stable_receive_hz": 31.65,
+  "pc_control_sample": {
+    "v": 1,
+    "type": "status",
+    "seq": 352,
+    "mode": "enabled",
+    "reason": "running",
+    "angle_rad": -0.5497824139239964,
+    "velocity_rad_s": 0.012420859777919133,
+    "q_rad": 0.5497824139239964,
+    "target_torque_nm": 0.5995648278479928,
+    "brake_torque_nm": -0.14894221308944286,
+    "telemetry_seq": 351,
+    "telemetry_fresh": true,
+    "vr_fresh": true,
+    "telemetry_age_ms": 0.0,
+    "vr_age_ms": 94.0,
+    "match_state": "running",
+    "character_id": "demo",
+    "elapsed_s": 11.0
+  },
+  "checks": [
+    {
+      "check": "Editor Play + waiting",
+      "result": "PASS",
+      "snapshot": {
+        "time": 9.1564007,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 339,
+        "match": "waiting",
+        "mode": "stop",
+        "reason": "match_waiting",
+        "angle": -0.55,
+        "poseDegrees": -31.512680053710938,
+        "poseErrorDegrees": 0.0,
+        "received": 7,
+        "sent": 1,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 339,
+          "angle_rad": -0.55,
+          "mode": "stop",
+          "reason": "match_waiting"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 0,
+          "character_id": "demo",
+          "match_state": "waiting"
+        }
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "snapshot": {
+        "time": 9.3569999,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 345,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.55,
+        "poseDegrees": -31.512680053710938,
+        "poseErrorDegrees": 0.0,
+        "received": 13,
+        "sent": 3,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 345,
+          "angle_rad": -0.55,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 2,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "continuous mechanical angle changes",
+      "result": "PASS",
+      "snapshot": {
+        "time": 10.857365900000001,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 393,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.5393849930442386,
+        "poseDegrees": -30.90448570251465,
+        "poseErrorDegrees": 0.0,
+        "received": 61,
+        "sent": 10,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 393,
+          "angle_rad": -0.5393849930442386,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 9,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "paused",
+      "result": "PASS",
+      "snapshot": {
+        "time": 11.057396200000001,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 399,
+        "match": "paused",
+        "mode": "stop",
+        "reason": "match_paused",
+        "angle": -0.5355583131565033,
+        "poseDegrees": -30.685232162475586,
+        "poseErrorDegrees": 0.0,
+        "received": 67,
+        "sent": 12,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 399,
+          "angle_rad": -0.5355583131565033,
+          "mode": "stop",
+          "reason": "match_paused"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 11,
+          "character_id": "demo",
+          "match_state": "paused"
+        }
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "snapshot": {
+        "time": 11.2574822,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 406,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.5010075655243451,
+        "poseDegrees": -28.705617904663086,
+        "poseErrorDegrees": 0.0,
+        "received": 74,
+        "sent": 13,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 406,
+          "angle_rad": -0.5010075655243451,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 12,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "finished",
+      "result": "PASS",
+      "snapshot": {
+        "time": 11.4574709,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 412,
+        "match": "finished",
+        "mode": "stop",
+        "reason": "match_finished",
+        "angle": -0.49636875154358007,
+        "poseDegrees": -28.439836502075195,
+        "poseErrorDegrees": 0.0,
+        "received": 80,
+        "sent": 14,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 412,
+          "angle_rad": -0.49636875154358007,
+          "mode": "stop",
+          "reason": "match_finished"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 13,
+          "character_id": "demo",
+          "match_state": "finished"
+        }
+      }
+    },
+    {
+      "check": "waiting",
+      "result": "PASS",
+      "snapshot": {
+        "time": 11.6575638,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 419,
+        "match": "waiting",
+        "mode": "stop",
+        "reason": "match_waiting",
+        "angle": -0.4536846393231943,
+        "poseDegrees": -25.99421501159668,
+        "poseErrorDegrees": 0.0,
+        "received": 87,
+        "sent": 15,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 419,
+          "angle_rad": -0.4536846393231943,
+          "mode": "stop",
+          "reason": "match_waiting"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 14,
+          "character_id": "demo",
+          "match_state": "waiting"
+        }
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "snapshot": {
+        "time": 11.857639,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62572,
+        "seq": 425,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.38424015406253237,
+        "poseDegrees": -22.015338897705078,
+        "poseErrorDegrees": 0.0,
+        "received": 93,
+        "sent": 16,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 425,
+          "angle_rad": -0.38424015406253237,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 15,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "script/domain reload while playing",
+      "result": "PASS",
+      "snapshot": {
+        "time": 13.082915100000001,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62573,
+        "seq": 464,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": 0.00872450074637044,
+        "poseDegrees": 0.49987706542015076,
+        "poseErrorDegrees": 0.0,
+        "received": 2,
+        "sent": 3,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 464,
+          "angle_rad": 0.00872450074637044,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 2,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "STM32 disconnect -> null angle",
+      "result": "PASS",
+      "snapshot": {
+        "time": 13.182901900000001,
+        "playing": true,
+        "fresh": true,
+        "validAngle": false,
+        "port": 62573,
+        "seq": 467,
+        "match": "running",
+        "mode": "stop",
+        "reason": "telemetry_missing",
+        "angle": 0.01941980180158604,
+        "poseDegrees": 1.1126726865768433,
+        "poseErrorDegrees": 0.0,
+        "received": 5,
+        "sent": 3,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 467,
+          "angle_rad": null,
+          "mode": "stop",
+          "reason": "telemetry_missing"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 2,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "null angle persists",
+      "result": "PASS",
+      "snapshot": {
+        "time": 13.683046000000001,
+        "playing": true,
+        "fresh": true,
+        "validAngle": false,
+        "port": 62573,
+        "seq": 483,
+        "match": "running",
+        "mode": "stop",
+        "reason": "telemetry_missing",
+        "angle": 0.01941980180158604,
+        "poseDegrees": 1.1126726865768433,
+        "poseErrorDegrees": 0.0,
+        "received": 21,
+        "sent": 6,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 483,
+          "angle_rad": null,
+          "mode": "stop",
+          "reason": "telemetry_missing"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 5,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "null holds last pose",
+      "result": "PASS"
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "snapshot": {
+        "time": 13.883132100000001,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62573,
+        "seq": 489,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.0006007069527704672,
+        "poseDegrees": -0.034417975693941116,
+        "poseErrorDegrees": 0.0,
+        "received": 27,
+        "sent": 7,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 489,
+          "angle_rad": -0.0006007069527704672,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 6,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "Editor Stop Play closes client",
+      "result": "PASS",
+      "snapshot": {
+        "time": 14.1090432,
+        "playing": false,
+        "fresh": false,
+        "validAngle": false,
+        "port": 0,
+        "seq": 0,
+        "match": "",
+        "mode": "",
+        "reason": "",
+        "angle": 0.0,
+        "poseDegrees": 0.0,
+        "poseErrorDegrees": 0.0,
+        "received": 0,
+        "sent": 0
+      }
+    },
+    {
+      "check": "PC vr_timeout after Editor Stop",
+      "result": "PASS"
+    },
+    {
+      "check": "Editor re-enter Play with new socket/source port",
+      "result": "PASS",
+      "snapshot": {
+        "time": 16.8548116,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 56698,
+        "seq": 584,
+        "match": "waiting",
+        "mode": "stop",
+        "reason": "match_waiting",
+        "angle": -0.55,
+        "poseDegrees": -31.512680053710938,
+        "poseErrorDegrees": 0.0,
+        "received": 5,
+        "sent": 1,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 584,
+          "angle_rad": -0.55,
+          "mode": "stop",
+          "reason": "match_waiting"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 0,
+          "character_id": "demo",
+          "match_state": "waiting"
+        }
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "snapshot": {
+        "time": 17.0548068,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 56698,
+        "seq": 591,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.5242600962678863,
+        "poseDegrees": -30.037891387939453,
+        "poseErrorDegrees": 0.0,
+        "received": 12,
+        "sent": 3,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 591,
+          "angle_rad": -0.5242600962678863,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 2,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "Unity status timeout after PC shutdown",
+      "result": "PASS",
+      "snapshot": {
+        "time": 18.1551009,
+        "playing": true,
+        "fresh": false,
+        "validAngle": false,
+        "port": 0,
+        "seq": 592,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.5239575034416251,
+        "poseDegrees": -30.020553588867188,
+        "poseErrorDegrees": 0.0,
+        "received": 13,
+        "sent": 8,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 592,
+          "angle_rad": -0.5239575034416251,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 7,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "timeout continues to hold pose",
+      "result": "PASS",
+      "snapshot": {
+        "time": 18.5552408,
+        "playing": true,
+        "fresh": false,
+        "validAngle": false,
+        "port": 0,
+        "seq": 592,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": -0.5239575034416251,
+        "poseDegrees": -30.020553588867188,
+        "poseErrorDegrees": 0.0,
+        "received": 13,
+        "sent": 8,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 592,
+          "angle_rad": -0.5239575034416251,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 7,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "PC restart/seq reset + STM32 auto reconnect",
+      "result": "PASS",
+      "snapshot": {
+        "time": 19.255525000000002,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 56699,
+        "seq": 18,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "angle": 0.6,
+        "poseDegrees": 34.37746810913086,
+        "poseErrorDegrees": 0.0,
+        "received": 15,
+        "sent": 9,
+        "received_datagram": {
+          "v": 1,
+          "type": "status",
+          "seq": 18,
+          "angle_rad": 0.6,
+          "mode": "enabled",
+          "reason": "running"
+        },
+        "sent_datagram": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 0,
+          "character_id": "demo",
+          "match_state": "running"
+        }
+      }
+    },
+    {
+      "check": "wire field sets + actual pivot quaternion",
+      "result": "PASS",
+      "samples": 46
+    },
+    {
+      "check": "Unity protocol checks + clean Editor exit",
+      "result": "PASS"
+    }
+  ],
+  "limits": [
+    "Button state handlers invoked by Editor automation, not physical mouse clicks.",
+    "Full raw logs remain in the local UnityUdpDemo/TestResults directory.",
+    "Not a PICO, IL2CPP/AOT, real STM32 or serial-V1 test.",
+    "First attempt used an unjustified 0.12 rad amplitude threshold; final check uses actual >0.01 rad movement plus quaternion mapping. Control code unchanged."
+  ]
+}
