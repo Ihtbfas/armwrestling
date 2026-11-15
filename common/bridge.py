@@ -9,6 +9,7 @@ import time
 
 from common.protocol import JsonSocket, MAX_LINE, decode_datagram, encode_datagram, validate_incoming
 from common.state import BridgeState, vr_payload
+from common.console import add_console_arguments, reporter_from_args
 
 
 def log(message):
@@ -23,7 +24,8 @@ def positive(value):
     return result
 
 
-def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_timeout=1.):
+def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_timeout=1., reporter=None):
+    emit = reporter or log
     state = BridgeState(telemetry_timeout, vr_timeout)
     peer = None  # The only TCP peer is the simulated STM32.
     blocked_since = None
@@ -41,7 +43,7 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
         vr_socket.bind((host, vr_port))
         vr_socket.setblocking(False)
         selector.register(vr_socket, selectors.EVENT_READ, 'vr_udp')
-        log(dict(event='listening', host=host, stm_port=listener.getsockname()[1],
+        emit(dict(event='listening', host=host, stm_port=listener.getsockname()[1],
                  vr_port=vr_socket.getsockname()[1], stm_transport='tcp', vr_transport='udp'))
 
         def drop_stm(reason):
@@ -52,7 +54,7 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                 peer = None
             state.clear('stm32')
             blocked_since = None
-            log(dict(event='disconnected', role='stm32', reason=reason))
+            emit(dict(event='disconnected', role='stm32', reason=reason))
 
         start = time.monotonic()
         next_tick = next_log = start
@@ -67,12 +69,12 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                             continue
                         if peer is not None:
                             sock.close()
-                            log(dict(event='rejected', role='stm32', reason='role already connected'))
+                            emit(dict(event='rejected', role='stm32', reason='role already connected'))
                             continue
                         peer = JsonSocket(sock)
                         state.clear('stm32')
                         selector.register(sock, selectors.EVENT_READ, 'stm_peer')
-                        log(dict(event='connected', role='stm32', transport='tcp'))
+                        emit(dict(event='connected', role='stm32', transport='tcp'))
                     elif key.data == 'vr_udp':
                         try:
                             packet, address = vr_socket.recvfrom(MAX_LINE+1)
@@ -85,11 +87,11 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                                 state.clear('vr')  # New UDP session may restart seq at zero.
                             state.receive('vr', message, time.monotonic())
                             if vr_address is None:
-                                log(dict(event='connected', role='vr', transport='udp'))
+                                emit(dict(event='connected', role='vr', transport='udp'))
                             vr_address = address
                         except (OSError, ValueError, UnicodeError) as error:
                             # A bad or out-of-order datagram never refreshes VR freshness.
-                            log(dict(event='rejected', role='vr', reason=str(error)))
+                            emit(dict(event='rejected', role='vr', reason=str(error)))
                     else:
                         try:
                             for message in peer.receive():
@@ -97,7 +99,7 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                         except BlockingIOError:
                             pass
                         except (OSError, EOFError, ValueError, RecursionError) as error:
-                            log(dict(event='rejected', role='stm32', reason=str(error)))
+                            emit(dict(event='rejected', role='stm32', reason=str(error)))
                             drop_stm(str(error))
 
                 now = time.monotonic()
@@ -105,7 +107,7 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                 if vr_address is not None and received_at is not None and now-received_at >= vr_timeout:
                     # UDP has no disconnect notification; release the endpoint after timeout.
                     vr_address = None
-                    log(dict(event='timeout', role='vr', reason='vr_timeout'))
+                    emit(dict(event='timeout', role='vr', reason='vr_timeout'))
                 if now >= next_tick:
                     command, status = state.outputs(now)
                     if peer is not None:
@@ -118,9 +120,9 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                         except OSError as error:
                             vr_address = None
                             state.clear('vr')
-                            log(dict(event='rejected', role='vr', reason=str(error)))
+                            emit(dict(event='rejected', role='vr', reason=str(error)))
                     if now >= next_log:
-                        log(dict(status, elapsed_s=round(now-start, 3)))
+                        emit(dict(status, elapsed_s=round(now-start, 3)))
                         next_log = now+.5
                     next_tick = now+.02
                 if peer is not None:
@@ -145,7 +147,7 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
                 except (OSError, EOFError):
                     pass
                 peer.socket.close()
-            log(dict(event='closed'))
+            emit(dict(event='closed'))
 
 
 def main():
@@ -156,14 +158,16 @@ def main():
     parser.add_argument('--telemetry-timeout', type=positive, default=.25)
     parser.add_argument('--vr-timeout', type=positive, default=1.)
     parser.add_argument('--duration', type=positive)
+    add_console_arguments(parser)
     args = parser.parse_args()
-    try:
-        serve(args.host, args.stm_port, args.vr_port, args.duration,
-              args.telemetry_timeout, args.vr_timeout)
-    except KeyboardInterrupt:
-        pass
-    except OSError as error:
-        parser.exit(2, f'Connection/listen error: {error}\n')
+    with reporter_from_args('PC 上位机（TCP 模拟链路）', args) as reporter:
+        try:
+            serve(args.host, args.stm_port, args.vr_port, args.duration,
+                  args.telemetry_timeout, args.vr_timeout, reporter)
+        except KeyboardInterrupt:
+            pass
+        except OSError as error:
+            parser.exit(2, f'Connection/listen error: {error}\n')
 
 
 if __name__ == '__main__':

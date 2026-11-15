@@ -16,10 +16,21 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--unity', required=True, type=Path)
     parser.add_argument('--project', required=True, type=Path)
+    parser.add_argument('--serial-pc-port', help='actual Windows virtual COM PC endpoint, e.g. COM1')
+    parser.add_argument('--serial-stm-port', help='paired simulator COM endpoint, e.g. COM2')
+    parser.add_argument('--results-dir', type=Path, help='separate evidence folder; default project/TestResults')
     args = parser.parse_args()
+    if bool(args.serial_pc_port) != bool(args.serial_stm_port):
+        parser.error('specify both --serial-pc-port and --serial-stm-port')
+    if args.serial_pc_port and args.serial_pc_port.upper() == args.serial_stm_port.upper():
+        parser.error('the PC and simulator must open different paired COM endpoints')
     repo = Path(__file__).resolve().parents[2]
-    results = args.project.resolve() / 'TestResults'
-    results.mkdir(exist_ok=True)
+    results = args.results_dir.resolve() if args.results_dir else args.project.resolve() / 'TestResults'
+    results.mkdir(exist_ok=True, parents=True)
+    pc_module = 'real.run' if args.serial_pc_port else 'common.bridge'
+    stm_module = 'sim.mock_stm32_serial' if args.serial_pc_port else 'sim.mock_stm32'
+    pc_args = ['--port', args.serial_pc_port] if args.serial_pc_port else []
+    stm_args = ['--port', args.serial_stm_port, '--demo-arm'] if args.serial_pc_port else []
     samples_file, command_file = results / 'samples.jsonl', results / 'command.json'
     for path in (samples_file, command_file):
         path.unlink(missing_ok=True)
@@ -27,10 +38,10 @@ def main():
     command_id = 0
     sample_offset = 0
 
-    def start(name, module):
+    def start(name, module, extra_args=()):
         handle = (results / (name + '.jsonl')).open('w', encoding='utf-8')
         handles.append(handle)
-        processes[name] = subprocess.Popen([sys.executable, '-u', '-m', module],
+        processes[name] = subprocess.Popen([sys.executable, '-u', '-m', module, *extra_args],
                                            cwd=repo, stdout=handle, stderr=subprocess.STDOUT)
 
     def stop(name):
@@ -82,11 +93,12 @@ def main():
 
     exit_code = 1
     try:
-        start('bridge', 'common.bridge')
-        start('stm32', 'sim.mock_stm32')
+        start('bridge', pc_module, pc_args)
+        start('stm32', stm_module, stm_args)
         processes['unity'] = subprocess.Popen([
             str(args.unity), '-batchmode', '-projectPath', str(args.project.resolve()),
             '-executeMethod', 'ArmWrestlingDemoTools.RunIntegration',
+            '-armUdpResults', str(results),
             '-logFile', str(results / 'unity-editor.log')])
         first = wait_for(lambda s: s['playing'] and s['fresh'] and s['reason'] == 'match_waiting',
                          'Editor Play + waiting', timeout=180)
@@ -105,13 +117,13 @@ def main():
         wait_for(lambda s: s['playing'] and s['fresh'] and s['port'] != before_reload['port']
                  and s['poseErrorDegrees'] < .01, 'script/domain reload while playing', timeout=25)
         stop('stm32')
-        missing = wait_for(lambda s: s['fresh'] and not s['validAngle'] and s['reason'] == 'telemetry_missing',
+        missing = wait_for(lambda s: s['fresh'] and not s['validAngle'] and s['reason'] in ('telemetry_missing', 'telemetry_timeout'),
                            'STM32 disconnect -> null angle')
         held = wait_for(lambda s: s['fresh'] and s['seq'] > missing['seq'] + 15
                         and not s['validAngle'], 'null angle persists')
         assert abs(held['poseDegrees'] - missing['poseDegrees']) < .001, 'null moved the arm'
         checks.append(dict(check='null holds last pose', result='PASS'))
-        start('stm32-reconnected', 'sim.mock_stm32')
+        start('stm32-reconnected', stm_module, stm_args)
         state('running', 'running')
         command('stop')
         wait_for(lambda s: not s['playing'], 'Editor Stop Play closes client')
@@ -131,7 +143,7 @@ def main():
         held = wait_for(lambda s: s['playing'] and not s['fresh'] and s['time'] > timed_out['time'] + .4,
                         'timeout continues to hold pose')
         assert abs(held['poseDegrees'] - timed_out['poseDegrees']) < .001
-        start('bridge-restarted', 'common.bridge')
+        start('bridge-restarted', pc_module, pc_args)
         wait_for(lambda s: s['playing'] and s['fresh'] and s['reason'] == 'running'
                  and s['seq'] < restarted['seq'] + 100, 'PC restart/seq reset + STM32 auto reconnect')
         # Every recorded wire snapshot has only the frozen V0.1 fields.
@@ -143,6 +155,22 @@ def main():
             assert set(json.loads(s['updateJson'])) == {'v', 'type', 'seq', 'character_id', 'match_state'}
         assert any(abs(s['angle']) > .1 for s in live)
         checks.append(dict(check='wire field sets + actual pivot quaternion', result='PASS', samples=len(live)))
+        if args.serial_pc_port:
+            rows = [json.loads(line) for line in (results / 'bridge.jsonl').read_text().splitlines()]
+            assert any(s.get('serial_session_ready') and s.get('serial_arm_ready') for s in rows)
+            # Allow enough time for a snapshot with braking, independent of Unity import duration.
+            deadline = time.monotonic() + 10
+            braking = []
+            while time.monotonic() < deadline:
+                for name in ('stm32.jsonl', 'stm32-reconnected.jsonl'):
+                    braking.extend(json.loads(line) for line in (results / name).read_text().splitlines()
+                                   if line.strip())
+                if any(abs(s.get('applied_torque_nm', 0)) > .001 for s in braking):
+                    break
+                time.sleep(.2)
+            assert any(s.get('accepted_commands', 0) > 0 and abs(s.get('applied_torque_nm', 0)) > .001
+                       for s in braking), 'no V1 command reached simulated brake'
+            checks.append(dict(check='actual COM V1 handshake + nonzero simulated braking', result='PASS'))
         command('quit')
         processes['unity'].wait(timeout=30)
         assert processes['unity'].returncode == 0
@@ -161,7 +189,9 @@ def main():
             handle.close()
         read_samples()
         report = dict(result='PASS' if exit_code == 0 else 'FAIL', checks=checks,
-                      unity=str(args.unity), python=sys.version, sample_count=len(samples))
+                      unity=str(args.unity), python=sys.version, sample_count=len(samples),
+                      transport='serial-v1-com' if args.serial_pc_port else 'tcp-json',
+                      pc_port=args.serial_pc_port, stm_port=args.serial_stm_port)
         (results / 'report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8')
     return exit_code
 

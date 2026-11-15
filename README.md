@@ -1,5 +1,9 @@
 # armwrestling — 单自由度被动力反馈
 
+## Windows 串口 V1 与中文操作员终端
+
+已在本机实际验证 **模拟 STM32 COM2 ↔ 虚拟串口对 ↔ PC COM1 ↔ UDP ↔ Unity**，使用原 V1 二进制协议与 `real.run`，不再以 TCP 代替这一段串口测试。终端交互模式默认显示中文状态、操作提示、连接新鲜度、带单位的角度与阻力；重定向输出仍为 JSON，可用 `--log-file` 同时记录。启动、调查依据和实际测试范围见 [Windows 串口与操作员说明](docs/windows-serial-operator-guide.md)。
+
 **代码职责：** `common/` 是公共通信协议、状态协调和控制算法；`real/` 是 PC 连接真实下位机的程序；`sim/` 是仿真数据源；[`tests/unity/`](tests/unity/) 只用于 Windows Unity 联调和演示，不参与 PC 正式运行。VR 组按 [`docs/vr-udp-v01.md`](docs/vr-udp-v01.md) 约定的 UDP 接口独立开发自己的 Unity/团结引擎程序，不要求复制测试脚本。
 
 ## Windows Unity UDP 实际联调

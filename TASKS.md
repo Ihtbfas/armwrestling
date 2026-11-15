@@ -194,4 +194,13 @@
 - [x] 将原 `unity/` 的三个 Unity C# 文件与 Windows 集成测试脚本移至同级的 `tests/unity/`，原项目没有需要依赖 Unity 的 PC 正式代码。
 - [x] 调整 Windows 集成测试入口的仓库根目录定位与文档路径，使测试代码和正式运行入口职责分明。
 - [x] 保留 `common/bridge.py`、`real/run.py`、`docs/vr-udp-v01.md` 的 V0.1 UDP 正式接口，VR 同学按协议自行开发或参考测试客户端，不要求使用测试代码。
-- [ ] 移动后仍需在用户 Windows 的 UnityUdpDemo 工程里按需复测，历史 2026-11-15 的真实 Unity 测试报告不因本次目录整理重写。
+- [x] 移动后已通过测试目录入口在 Windows 真正运行 Unity + V1 COM 串口联调；历史 TCP 测试报告保留，新证据在 `docs/test-results/2026-11-15-windows-serial.json`。
+
+## Windows V1 串口与操作员展示（2026-11-15）
+
+- [x] 调查并复用本机已存在的 ELTIMA COM1 ↔ COM2；没有另装驱动或使用 Linux PTY。
+- [x] 中文终端原位显示程序职责、状态原因、操作提示、链路新鲜度及带单位数据，支持另存 JSONL；重定向保持 JSON 兼容。
+- [x] 串口模拟器支持 Windows COM 和原 Linux PTY 路线；V1 会话、CRC16、序号回绕和命令看门狗有回归检查。
+- [x] PC 在串口对端静默后重新建立会话；迟到 ENABLE 不能跨过已过期的模拟本地授权。
+- [x] 45 项 Python 测试通过，1 项 Linux PTY 测试在 Windows 跳过；6 项实际 COM 检查、23 项真正 Unity 串口端到端检查通过。
+- [x] 公共控制算法、串口 V1 线协议及 VR UDP V0.1 字段不变；Unity 仍只作为 tests 内的参考客户端。

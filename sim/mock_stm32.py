@@ -6,6 +6,7 @@ import socket
 import time
 
 from common.bridge import log, positive
+from common.console import add_console_arguments, reporter_from_args
 from common.control import passive_torque
 from common.protocol import JsonSocket, validate_command
 
@@ -62,7 +63,11 @@ def main():
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=9101)
     parser.add_argument('--duration', type=positive)
+    add_console_arguments(parser)
     args = parser.parse_args()
+    reporter = reporter_from_args('模拟 STM32（TCP / 软件机械）', args)
+    log = reporter
+    log(dict(event='listening', stm_port=args.port, stm_transport='tcp'))
     device = SimulatedDevice()
     peer = None
     start = next_tick = next_log = next_connect = time.monotonic()
@@ -123,6 +128,8 @@ def main():
         if peer is not None:
             peer.socket.close()
         device.stop()
+        log(dict(event='closed'))
+        reporter.close()
 
 
 if __name__ == '__main__':

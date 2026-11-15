@@ -93,6 +93,10 @@ public static class ArmWrestlingDemoTools
         RunProtocolChecks();
         CreateDemoScene();
         string results = Path.GetFullPath(Path.Combine(Application.dataPath, "../TestResults"));
+        string[] args = Environment.GetCommandLineArgs();
+        int resultIndex = Array.IndexOf(args, "-armUdpResults");
+        if (resultIndex >= 0 && resultIndex + 1 < args.Length)
+            results = Path.GetFullPath(args[resultIndex + 1]);
         Directory.CreateDirectory(results);
         SessionState.SetString(ResultsKey, results);
         SessionState.SetInt(CommandKey, 0);

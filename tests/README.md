@@ -1,5 +1,7 @@
 # 测试代码（不参与 PC 正式运行）
 
+Windows V1 串口端到端验证见 [操作员与串口指南](../docs/windows-serial-operator-guide.md)。`serial/check_windows_v1.py` 显式打开指定 COM 对，检查二进制会话/CRC/序号/看门狗；`unity/run_windows_integration.py` 可用 `--serial-pc-port COM1 --serial-stm-port COM2` 验证真正的 Unity + COM 链路，并用 `--results-dir` 独立保存证据。这些测试仅在主动执行时运行。
+
 本目录用于放置**独立的联调演示与测试资产**。它不构成 VR 组的软件交付要求。
 
 ## Unity/UDP 测试

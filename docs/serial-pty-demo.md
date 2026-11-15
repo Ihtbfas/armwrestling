@@ -1,5 +1,7 @@
 # STM32 V1 虚拟串口联调（Ubuntu）
 
+Windows 现已支持实际虚拟 COM 端口对，例如模拟器 `--port COM2`、PC `--port COM1`，并完成真正的 Unity 串口链路联调。见 [Windows V1 串口与中文终端说明](windows-serial-operator-guide.md)。下面仍是原 Linux PTY 路线。
+
 这里使用 Linux 自带的 **PTY 伪终端** 模拟 USB 串口，不使用 TCP 模拟 STM32 数据。通过 PTY 传输的字节就是 [STM32 串口 V1 协议](stm32-serial-v1.md) 定义的完整二进制帧（帧头、定长字段、小端整数、序号、CRC16、会话握手）。VR 仍使用既定的 UDP JSON 9102 协议。
 
 ## 三个终端启动
@@ -40,7 +42,7 @@ python3 -m sim.mock_vr --demo-states
 - PC 使用同一个 `real/stm32_link.py` 读写 V1 字节流，完成 `SESSION_OPEN/SESSION_ACK`，解析带 CRC16 的数据，再通过现有 `common/state.py` 和 `common/control.py`（50 Hz）计算阻力幅值，向下位机下发 V1 `brake_command`。
 - 模拟 STM32 收到有效会话内的 ENABLE 后，把制动幅值应用于本地**简化单自由度动力学**；只接受最新序号的有效命令，指令超时后停止模拟制动并清除 ARM_READY。
 - VR ↔ PC 的 UDP 端口 9102 不变，VR 只传角色编号/比赛状态，PC 只返回角度/运行状态/原因。
-- 实际部署在 Windows 时，PC 用 `py -3 -m real.run --port COM5` 等命令连接 **真实 USB CDC 或 USART+USB 转串口**；只改变设备端口名，仍用相同的 V1 应用层字节协议。**本 PTY 模拟器只支持 Linux/Unix**，Windows 要做虚拟串口对接需另外的虚拟 COM 驱动。
+- 实际部署在 Windows 时，PC 用 `py -3 -m real.run --port COM5` 等命令连接 **真实 USB CDC 或 USART+USB 转串口**；只改变设备端口名，仍用相同的 V1 应用层字节协议。默认 PTY 方式只支持 Linux/Unix；Windows 使用本机已配置的虚拟 COM 对并给模拟器指定 `--port COMx`。
 - 旧的 `python3 -m common.bridge` + `python3 -m sim.mock_stm32` 仍保留作 TCP/UDP 历史演示，但它**不验证真实串口 V1**，不要将其与本方案混同。
 
 ## 验证

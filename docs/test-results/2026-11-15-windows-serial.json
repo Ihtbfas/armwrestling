@@ -1,0 +1,531 @@
+{
+  "date": "2026-11-15",
+  "environment": {
+    "os": "Windows 11",
+    "python": "3.11.5",
+    "pyserial": "3.5",
+    "unity": "2022.3.62f3c1",
+    "virtual_com": "ELTIMA COM1 <-> COM2, both device states OK"
+  },
+  "base_commit": "1e9c56837da8035a6c32e04148529609a4628619",
+  "chain": "sim.mock_stm32_serial COM2 <-> Windows virtual COM pair <-> real.run COM1 <-> UDP127.0.0.1:9102 <-> real Unity Editor Play",
+  "python_tests": {
+    "run": 46,
+    "passed": 45,
+    "skipped": 1,
+    "skip_reason": "Linux PTY test; Windows actual COM tests are separate"
+  },
+  "com_wire_checks": [
+    {
+      "check": "actual COM V1 session request/ACK + CRC-checked decode",
+      "result": "PASS"
+    },
+    {
+      "check": "actual COM brake command/telemetry and sequence 65535 -> 0",
+      "result": "PASS"
+    },
+    {
+      "check": "bad CRC, wrong session and duplicate command do not replace target",
+      "result": "PASS"
+    },
+    {
+      "check": "200 ms command watchdog removes ARM_READY and clears target",
+      "result": "PASS"
+    },
+    {
+      "check": "ENABLE cannot restore authorization after watchdog",
+      "result": "PASS"
+    },
+    {
+      "check": "new demo-authorized session does not inherit old brake target",
+      "result": "PASS"
+    }
+  ],
+  "unity_checks": [
+    {
+      "check": "Editor Play + waiting",
+      "result": "PASS",
+      "sample": {
+        "time": 8.4431528,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 1,
+        "received": 7,
+        "ignored": 0,
+        "seq": 318,
+        "match": "waiting",
+        "mode": "stop",
+        "reason": "match_waiting",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":318,\"angle_rad\":-0.55,\"mode\":\"stop\",\"reason\":\"match_waiting\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":0,\"character_id\":\"demo\",\"match_state\":\"waiting\"}",
+        "angle": -0.55,
+        "poseDegrees": -31.512680053710938,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "sample": {
+        "time": 8.6434866,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 3,
+        "received": 14,
+        "ignored": 0,
+        "seq": 325,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":325,\"angle_rad\":-0.55,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":2,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.55,
+        "poseDegrees": -31.512680053710938,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "continuous mechanical angle changes",
+      "result": "PASS",
+      "sample": {
+        "time": 10.744487399999999,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 13,
+        "received": 81,
+        "ignored": 0,
+        "seq": 392,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":392,\"angle_rad\":-0.54,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":12,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.54,
+        "poseDegrees": -30.939722061157227,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "paused",
+      "result": "PASS",
+      "sample": {
+        "time": 10.944522999999998,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 15,
+        "received": 87,
+        "ignored": 0,
+        "seq": 398,
+        "match": "paused",
+        "mode": "stop",
+        "reason": "match_paused",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":398,\"angle_rad\":-0.537,\"mode\":\"stop\",\"reason\":\"match_paused\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":14,\"character_id\":\"demo\",\"match_state\":\"paused\"}",
+        "angle": -0.537,
+        "poseDegrees": -30.767833709716797,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "sample": {
+        "time": 11.144568399999999,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 16,
+        "received": 94,
+        "ignored": 0,
+        "seq": 405,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":405,\"angle_rad\":-0.503,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":15,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.503,
+        "poseDegrees": -28.819778442382812,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "finished",
+      "result": "PASS",
+      "sample": {
+        "time": 11.3447514,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 17,
+        "received": 100,
+        "ignored": 0,
+        "seq": 411,
+        "match": "finished",
+        "mode": "stop",
+        "reason": "match_finished",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":411,\"angle_rad\":-0.498,\"mode\":\"stop\",\"reason\":\"match_finished\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":16,\"character_id\":\"demo\",\"match_state\":\"finished\"}",
+        "angle": -0.498,
+        "poseDegrees": -28.53329849243164,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "waiting",
+      "result": "PASS",
+      "sample": {
+        "time": 11.544692099999999,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 18,
+        "received": 107,
+        "ignored": 0,
+        "seq": 418,
+        "match": "waiting",
+        "mode": "stop",
+        "reason": "match_waiting",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":418,\"angle_rad\":-0.454,\"mode\":\"stop\",\"reason\":\"match_waiting\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":17,\"character_id\":\"demo\",\"match_state\":\"waiting\"}",
+        "angle": -0.454,
+        "poseDegrees": -26.012283325195312,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "sample": {
+        "time": 11.7448312,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 62566,
+        "sent": 19,
+        "received": 113,
+        "ignored": 0,
+        "seq": 424,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":424,\"angle_rad\":-0.388,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":18,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.388,
+        "poseDegrees": -22.230762481689453,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "script/domain reload while playing",
+      "result": "PASS",
+      "sample": {
+        "time": 13.0013128,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 50186,
+        "sent": 1,
+        "received": 3,
+        "ignored": 0,
+        "seq": 464,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":464,\"angle_rad\":-0.212,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":0,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.212,
+        "poseDegrees": -12.146705627441406,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "STM32 disconnect -> null angle",
+      "result": "PASS",
+      "sample": {
+        "time": 13.301321399999999,
+        "playing": true,
+        "fresh": true,
+        "validAngle": false,
+        "port": 50186,
+        "sent": 2,
+        "received": 12,
+        "ignored": 0,
+        "seq": 473,
+        "match": "running",
+        "mode": "stop",
+        "reason": "telemetry_missing",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":473,\"angle_rad\":null,\"mode\":\"stop\",\"reason\":\"telemetry_missing\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":1,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.21,
+        "poseDegrees": -12.032113075256348,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "null angle persists",
+      "result": "PASS",
+      "sample": {
+        "time": 13.8015536,
+        "playing": true,
+        "fresh": true,
+        "validAngle": false,
+        "port": 50186,
+        "sent": 5,
+        "received": 28,
+        "ignored": 0,
+        "seq": 489,
+        "match": "running",
+        "mode": "stop",
+        "reason": "telemetry_missing",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":489,\"angle_rad\":null,\"mode\":\"stop\",\"reason\":\"telemetry_missing\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":4,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.21,
+        "poseDegrees": -12.032113075256348,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "null holds last pose",
+      "result": "PASS"
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "sample": {
+        "time": 14.201713499999999,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 50186,
+        "sent": 7,
+        "received": 41,
+        "ignored": 0,
+        "seq": 502,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":502,\"angle_rad\":-0.023,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":6,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.023,
+        "poseDegrees": -1.317802906036377,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "Editor Stop Play closes client",
+      "result": "PASS",
+      "sample": {
+        "time": 14.4193166,
+        "playing": false,
+        "fresh": false,
+        "validAngle": false,
+        "port": 0,
+        "sent": 0,
+        "received": 0,
+        "ignored": 0,
+        "seq": 0,
+        "match": "",
+        "mode": "",
+        "reason": "",
+        "statusJson": "",
+        "updateJson": "",
+        "angle": 0.0,
+        "poseDegrees": 0.0,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "PC vr_timeout after Editor Stop",
+      "result": "PASS"
+    },
+    {
+      "check": "Editor re-enter Play with new socket/source port",
+      "result": "PASS",
+      "sample": {
+        "time": 17.188995000000002,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 50190,
+        "sent": 1,
+        "received": 8,
+        "ignored": 0,
+        "seq": 597,
+        "match": "waiting",
+        "mode": "stop",
+        "reason": "match_waiting",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":597,\"angle_rad\":-0.534,\"mode\":\"stop\",\"reason\":\"match_waiting\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":0,\"character_id\":\"demo\",\"match_state\":\"waiting\"}",
+        "angle": -0.534,
+        "poseDegrees": -30.595945358276367,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "running",
+      "result": "PASS",
+      "sample": {
+        "time": 17.3891597,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 50190,
+        "sent": 3,
+        "received": 15,
+        "ignored": 0,
+        "seq": 604,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":604,\"angle_rad\":-0.476,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":2,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.476,
+        "poseDegrees": -27.27279281616211,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "Unity status timeout after PC shutdown",
+      "result": "PASS",
+      "sample": {
+        "time": 18.389489,
+        "playing": true,
+        "fresh": false,
+        "validAngle": false,
+        "port": 0,
+        "sent": 8,
+        "received": 15,
+        "ignored": 0,
+        "seq": 604,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":604,\"angle_rad\":-0.476,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":7,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.476,
+        "poseDegrees": -27.27279281616211,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "timeout continues to hold pose",
+      "result": "PASS",
+      "sample": {
+        "time": 18.7895824,
+        "playing": true,
+        "fresh": false,
+        "validAngle": false,
+        "port": 0,
+        "sent": 8,
+        "received": 15,
+        "ignored": 0,
+        "seq": 604,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":604,\"angle_rad\":-0.476,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":7,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": -0.476,
+        "poseDegrees": -27.27279281616211,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "PC restart/seq reset + STM32 auto reconnect",
+      "result": "PASS",
+      "sample": {
+        "time": 19.589936700000003,
+        "playing": true,
+        "fresh": true,
+        "validAngle": true,
+        "port": 51527,
+        "sent": 9,
+        "received": 18,
+        "ignored": 0,
+        "seq": 18,
+        "match": "running",
+        "mode": "enabled",
+        "reason": "running",
+        "statusJson": "{\"v\":1,\"type\":\"status\",\"seq\":18,\"angle_rad\":0.6,\"mode\":\"enabled\",\"reason\":\"running\"}",
+        "updateJson": "{\"v\":1,\"type\":\"vr_update\",\"seq\":0,\"character_id\":\"demo\",\"match_state\":\"running\"}",
+        "angle": 0.6,
+        "poseDegrees": 34.37746810913086,
+        "poseErrorDegrees": 0.0
+      }
+    },
+    {
+      "check": "wire field sets + actual pivot quaternion",
+      "result": "PASS",
+      "samples": 53
+    },
+    {
+      "check": "actual COM V1 handshake + nonzero simulated braking",
+      "result": "PASS"
+    },
+    {
+      "check": "Unity protocol checks + clean Editor exit",
+      "result": "PASS"
+    }
+  ],
+  "editor_snapshots": 96,
+  "valid_angle_range_rad": [
+    -0.55,
+    0.6
+  ],
+  "max_pose_error_degrees": 0.0,
+  "pc_running_sample": {
+    "v": 1,
+    "type": "status",
+    "seq": 336,
+    "mode": "enabled",
+    "reason": "running",
+    "angle_rad": -0.55,
+    "velocity_rad_s": 0.0,
+    "q_rad": 0.55,
+    "target_torque_nm": 0.6000000000000001,
+    "brake_torque_nm": -0.0,
+    "telemetry_seq": 660,
+    "telemetry_fresh": true,
+    "vr_fresh": true,
+    "telemetry_age_ms": 0.0,
+    "vr_age_ms": 31.0,
+    "match_state": "running",
+    "character_id": "demo",
+    "serial_session_ready": true,
+    "serial_arm_ready": true,
+    "serial_applied_target_nm": 0.6,
+    "elapsed_s": 10.531
+  },
+  "stm_braking_sample": {
+    "type": "stm32_serial_snapshot",
+    "elapsed_s": 11.0,
+    "angle_rad": -0.5499053536673787,
+    "velocity_rad_s": 0.01177393700889956,
+    "user_torque_nm": 0.15,
+    "applied_torque_nm": -0.1348262390369271,
+    "reason": "running",
+    "armed": true,
+    "session_ready": true,
+    "last_command_seq": 347,
+    "accepted_commands": 346,
+    "received_bytes": 7629,
+    "transmitted_bytes": 19025
+  },
+  "review": "Independent review found no blocking findings; deadline-before-ENABLE regression added and passed.",
+  "limits": [
+    "Software simulated mechanics; no physical STM32 or force measurement.",
+    "No Linux PTY, PICO or IL2CPP run in this Windows test.",
+    "Terminal presentation is separate from frozen wire protocols and control policy."
+  ]
+}
