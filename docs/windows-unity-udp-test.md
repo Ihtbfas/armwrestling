@@ -36,11 +36,17 @@ python -m sim.mock_stm32
 
 如端口被其他进程占用，先用 `Get-NetUDPEndpoint -LocalPort 9102` / `Get-NetTCPConnection -LocalPort 9101` 确认进程及旧终端，不要改协议端口或批量结束无关 Python 进程。自动测试启动的进程会在结束时清理；若当前已有手动演示进程，先关闭再跑自动测试。
 
+## 测试代码与正式系统的边界
+
+仓库 `tests/unity/` 中的 C#、编辑器场景生成工具和 Python 自动化脚本均是**测试资产**，不是 PC 正式运行时的依赖。PC 端对外仍只通过 UDP V0.1 协议与 Unity/VR 交互，具体协议见 [vr-udp-v01.md](vr-udp-v01.md)。VR 同学可以参考这里的 C# UDP 实现，也可以独立编写自己的客户端，并不需要复制演示场景或运行测试脚本。
+
+独立的 `UnityUdpDemo` 测试工程在仓库外，与 `code` 同级；这个整理不会自动改动该工程 `Assets/ArmWrestling` 中已有的脚本副本。
+
 ## 从仓库在新工程中配置
 
 1. 用本机编辑器新建普通 3D 工程，使用内置渲染管线，不安装 XR 或额外网络/JSON 包。
-2. 把 `unity/ArmWrestlingUdpClient.cs`、`unity/ArmWrestlingUdpDemo.cs` 复制到 `Assets/ArmWrestling/`。
-3. 把 `unity/Editor/ArmWrestlingDemoTools.cs` 复制到 `Assets/ArmWrestling/Editor/`。保持 **Editor** 子目录，避免编辑器工具进入玩家程序。
+2. 把 `tests/unity/ArmWrestlingUdpClient.cs`、`tests/unity/ArmWrestlingUdpDemo.cs` 复制到 `Assets/ArmWrestling/`。
+3. 把 `tests/unity/Editor/ArmWrestlingDemoTools.cs` 复制到 `Assets/ArmWrestling/Editor/`。保持 **Editor** 子目录，避免编辑器工具进入玩家程序。
 4. 等编译完成，执行菜单 **Arm Wrestling → Create UDP Demo Scene**。它创建 Pivot、长方体、关节、桌面、相机、光源和挂好脚本的 UDP Demo，并保存场景。它会提示保存当前已修改场景；建议只在独立测试工程中执行。
 5. 点 Play，默认发送角色 `demo`、状态 `waiting`。点击四个按钮进行切换。
 
@@ -48,7 +54,7 @@ python -m sim.mock_stm32
 
 ## 通信与移植
 
-`ArmWrestlingUdpClient.cs` 是通用网络部分，可单独复制。绑定 IPv4 loopback 的临时端口，使用同一 `UdpClient` 发往和接收自 `127.0.0.1:9102`。每约 200 ms 发完整状态；按钮切换立即额外发送。UTF-8 无 BOM、无换行，VR 包只有 `v/type/seq/character_id/match_state`。
+`tests/unity/ArmWrestlingUdpClient.cs` 是经过测试的 Unity 端通信参考实现，可供 VR 同学选用，但不是必须使用的正式代码。绑定 IPv4 loopback 的临时端口，使用同一 `UdpClient` 发往和接收自 `127.0.0.1:9102`。每约 200 ms 发完整状态；按钮切换立即额外发送。UTF-8 无 BOM、无换行，VR 包只有 `v/type/seq/character_id/match_state`。
 
 主线程每帧最多轮询 64 个包，socket 设为非阻塞，不等待网络，也没有后台线程。界面和 Transform 都在主线程更新。`Status` 是最新有效状态；`HasFreshStatus` 和 `HasValidAngle` 是读取状态/角度时应检查的有效性标志；`LastAngleRad` 留存最后有效角度。使用 `SetMatchState("running")` 等方法切换比赛状态。
 
@@ -58,7 +64,7 @@ python -m sim.mock_stm32
 
 `ArmWrestlingUdpDemo.cs` 仅是可替换的 OnGUI 和摆臂映射：`LateUpdate` 使用有效 `angle_rad * Mathf.Rad2Deg` 更新 Pivot；无效或通信过期时保持姿态。OnDisable、OnDestroy、退出程序均关闭 socket；实际 Stop/Play 和脚本域重载均已测试。暂停/stop 本身不会清除仍然有效的机械角度。
 
-迁移 VR 时，把网络脚本挂在随会话启停的对象上，用 VR UI 调用 `SetMatchState`，以有效角度驱动自己的骨骼或转轴，替换 Demo 即可。`characterId` 应保持 1–64 字符；角色编号目前只记录，不切换 PC 控制策略。不发送角速度、刚度、最大力矩等字段。`enabled` 只表示 PC 正在正常计算策略。
+如果 VR 同学选择复用该示例，可把网络脚本挂在随会话启停的对象上，用 VR UI 调用 `SetMatchState`，以有效角度驱动自己的骨骼或转轴，替换 Demo 即可。`characterId` 应保持 1–64 字符；角色编号目前只记录，不切换 PC 控制策略。不发送角速度、刚度、最大力矩等字段。`enabled` 只表示 PC 正在正常计算策略。
 
 本次只验证上面的 Windows 编辑器版本。其他 Unity/团结版本、PICO/Android、IL2CPP/AOT 或程序集裁剪尚未验证；使用反射的 .NET JSON 数据契约在新构建目标上应重新做运行验证，不能据此宣称头显构建已兼容。将来改用真实 STM32 的 `real.run --port COMx` 时，VR UDP 接口保持不变；本次未进行串口 V1 或实物验证。
 
@@ -91,7 +97,7 @@ python -m sim.mock_stm32
 
 ```powershell
 python -m unittest common.test_bridge sim.test_bridge_clients sim.test_bridge_integration sim.test_vr_udp -v
-python unity/run_windows_integration.py --unity 'D:\Unity\Hub\Editor\2022.3.62f3c1\Editor\Unity.exe' --project '..\UnityUdpDemo'
+python tests/unity/run_windows_integration.py --unity 'D:\Unity\Hub\Editor\2022.3.62f3c1\Editor\Unity.exe' --project '..\UnityUdpDemo'
 ```
 
 可选自动工具会启动真正的 Unity 编辑器（batchmode，实际进入/退出 Play、域重载）、PC 和模拟 STM32，约几十秒后写出 `TestResults/report.json` 并退出。它只在显式运行时启动，不是普通 Python 测试发现的一部分；本机端口必须空闲。自动测试中的 `sim.mock_vr` 仅可能由原有 Python 回归测试内部启动，那些结果不计入 Unity 联调证据。

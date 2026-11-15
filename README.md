@@ -1,8 +1,10 @@
 # armwrestling — 单自由度被动力反馈
 
+**代码职责：** `common/` 是公共通信协议、状态协调和控制算法；`real/` 是 PC 连接真实下位机的程序；`sim/` 是仿真数据源；[`tests/unity/`](tests/unity/) 只用于 Windows Unity 联调和演示，不参与 PC 正式运行。VR 组按 [`docs/vr-udp-v01.md`](docs/vr-udp-v01.md) 约定的 UDP 接口独立开发自己的 Unity/团结引擎程序，不要求复制测试脚本。
+
 ## Windows Unity UDP 实际联调
 
-已在 Windows 11 / Unity 2022.3.62f3c1 上完成真正的 Unity Editor Play ↔ Python PC 上位机 ↔ 模拟 STM32 联调。可复制 C# 客户端和摆臂演示位于 `unity/`；启动、配置、22 项实际联调检查及移交说明见 [Windows Unity UDP 联调说明](docs/windows-unity-udp-test.md)。本次未连接头显或真实 STM32，未修改公共控制策略。
+已在 Windows 11 / Unity 2022.3.62f3c1 上完成真正的 Unity Editor Play ↔ Python PC 上位机 ↔ 模拟 STM32 联调。Unity 演示及编辑器自动联调脚本已集中在 [`tests/unity/`](tests/unity/)（仅作测试/参考，不是 PC 正式依赖）；启动、配置、22 项实际联调检查及移交说明见 [Windows Unity UDP 联调说明](docs/windows-unity-udp-test.md)。本次未连接头显或真实 STM32，未修改公共控制策略。
 
 ## STM32 V1 虚拟串口模拟与实际串口入口
 

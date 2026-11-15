@@ -1,7 +1,7 @@
 """Opt-in real Unity Editor Play integration; no Python VR client is started.
 
-python unity/run_windows_integration.py --unity <Unity.exe> --project <UnityUdpDemo>
-The project must contain the scripts in unity/ and unity/Editor/.
+python tests/unity/run_windows_integration.py --unity <Unity.exe> --project <UnityUdpDemo>
+The Unity test project must contain copies of the scripts from tests/unity/ and tests/unity/Editor/.
 """
 import argparse
 import json
@@ -17,7 +17,7 @@ def main():
     parser.add_argument('--unity', required=True, type=Path)
     parser.add_argument('--project', required=True, type=Path)
     args = parser.parse_args()
-    repo = Path(__file__).resolve().parents[1]
+    repo = Path(__file__).resolve().parents[2]
     results = args.project.resolve() / 'TestResults'
     results.mkdir(exist_ok=True)
     samples_file, command_file = results / 'samples.jsonl', results / 'command.json'
