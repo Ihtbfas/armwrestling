@@ -48,4 +48,6 @@
 
 VR：人物与场景、角色选择、开始/暂停/结束、角度动作映射。PC：接收 STM32 机械状态、计算阻力、回传有效角度和运行原因。先实现基本动作同步和比赛切换；重置、胜负事件确认和不同对手的详细策略等留给后续版本。
 
-可用 `python3 -m common.bridge`、`python3 -m sim.mock_stm32`、`python3 -m sim.mock_vr --demo-states` 做三终端演示；Windows 以 `py -3` 替代 `python3`。真实 Windows/团结引擎与 STM32 串口联调尚未完成。
+Windows 已用真正的 Unity Editor 客户端验证 UDP，并用虚拟 COM 端口对验证“模拟 STM32 ↔ PC ↔ Unity”完整链路。启动与交接检查见 [项目 README](../README.md)，串口结果见 [Windows 操作说明](windows-serial-operator-guide.md)。实体 STM32、头显与 IL2CPP 构建尚未联调。
+
+只用 Python 检查 UDP 时，可在三个终端分别运行 `python -m common.bridge`、`python -m sim.mock_stm32`、`python -m sim.mock_vr --demo-states`。Unity 参与测试时，由它替换 `sim.mock_vr`，不要同时启动两个 VR 客户端。

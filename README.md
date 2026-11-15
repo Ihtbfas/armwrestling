@@ -1,199 +1,217 @@
-# armwrestling — 单自由度被动力反馈
+# 沉浸式力反馈单自由度扳手腕系统
 
-## Windows 串口 V1 与中文操作员终端
+本仓库负责 PC 上位机、阻力控制策略和通信测试。PC 接收机械臂的角度、角速度及设备状态，计算目标制动阻力，再把机械角度和运行状态发给 Unity/VR。制动只阻碍运动，不主动驱动机械臂。
 
-已在本机实际验证 **模拟 STM32 COM2 ↔ 虚拟串口对 ↔ PC COM1 ↔ UDP ↔ Unity**，使用原 V1 二进制协议与 `real.run`，不再以 TCP 代替这一段串口测试。终端交互模式默认显示中文状态、操作提示、连接新鲜度、带单位的角度与阻力；重定向输出仍为 JSON，可用 `--log-file` 同时记录。启动、调查依据和实际测试范围见 [Windows 串口与操作员说明](docs/windows-serial-operator-guide.md)。
+VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协议](docs/vr-udp-v01.md) 与 PC 通信。`tests/unity/` 是我们自测用的参考客户端，可以选用，也可以自行实现。
 
-**代码职责：** `common/` 是公共通信协议、状态协调和控制算法；`real/` 是 PC 连接真实下位机的程序；`sim/` 是仿真数据源；[`tests/unity/`](tests/unity/) 只用于 Windows Unity 联调和演示，不参与 PC 正式运行。VR 组按 [`docs/vr-udp-v01.md`](docs/vr-udp-v01.md) 约定的 UDP 接口独立开发自己的 Unity/团结引擎程序，不要求复制测试脚本。
+第一次接手，先看下面的框架，再按“交接通信测试”运行。只测 VR ↔ PC 时不需要头显、STM32、虚拟串口或 MuJoCo。
 
-## Windows Unity UDP 实际联调
+## 项目框架与分工
 
-已在 Windows 11 / Unity 2022.3.62f3c1 上完成真正的 Unity Editor Play ↔ Python PC 上位机 ↔ 模拟 STM32 联调。Unity 演示及编辑器自动联调脚本已集中在 [`tests/unity/`](tests/unity/)（仅作测试/参考，不是 PC 正式依赖）；启动、配置、22 项实际联调检查及移交说明见 [Windows Unity UDP 联调说明](docs/windows-unity-udp-test.md)。本次未连接头显或真实 STM32，未修改公共控制策略。
-
-## STM32 V1 虚拟串口模拟与实际串口入口
-
-新增 [虚拟串口联调说明](docs/serial-pty-demo.md)。Linux/Ubuntu 上先运行 `python3 -m sim.mock_stm32_serial --demo-arm`，程序将显示一个临时 `/dev/pts/N`；然后安装 `pyserial`，用 `python3 -m real.run --port /dev/pts/N` 运行 PC 串口 V1 控制程序，再用 `python3 -m sim.mock_vr --demo-states` 运行原 UDP VR 模拟器。三进程通过 **真正的 V1 二进制串口帧**（CRC16/会话握手/看门狗）和 **UDP 9102** 交互，原 TCP 9101 模拟仍保留作历史对照。
-
-将来在 Windows 连接实体 USB CDC / USB转串口 STM32 时，PC 使用同一个 `real.run` 入口，把端口名改为 `COM5` 等；不必改 V1 协议与控制算法。Linux PTY 不是 Windows 虚拟 COM 端口。当前新增串口模拟和测试代码，**尚未代表实体 STM32/Windows/团结引擎已经联调**；`--demo-arm` 只授权模拟器，不可用于绕过实机安全保护。
-
-
-## VR ↔ PC UDP 最小接口 V0.1
-
-已与 VR 组初步约定：VR → PC 仅传角色编号 `character_id` 与比赛状态 `match_state`；PC → VR 仅传机械角度 `angle_rad`、控制模式 `mode`、状态原因 `reason`。两端消息另含 `v/type/seq`；**不传角速度和阻力参数**，PC 内部仍使用角速度和原来的固定阻力参数计算。端口 UDP 9102，频率 VR 心跳约 200 ms、PC 状态约 50 Hz。完整精简协议见 [docs/vr-udp-v01.md](docs/vr-udp-v01.md)。
-
-
-
-## STM32 串口 V1 修订草案（待双方确认）
-
-[串口协议 V1](docs/stm32-serial-v1.md) 已根据下位机组审阅修订：修复坏帧导致的组帧阻塞、增加 100 ms 组帧超时；明确 200 ms 默认/本地上限与 `valid_for_ms` 的关系；新增 SESSION_OPEN/SESSION_ACK 及 64 位会话编号，防止旧 ENABLE 在重连后误生效，并将故障解除与人工重新使能分开；统一主轴侧目标阻力单位。Python 编解码参考位于 [common/serial_protocol.py](common/serial_protocol.py)，含 13 项协议测试和五个十六进制样例。
-
-**本次仍未实现真实 COM 串口或 STM32 固件状态机。** 新会话流程需下位机组实施确认；VR UDP 9102、模拟 STM32 TCP 9101、MuJoCo 和公共阻力控制代码不变。
-
-## STM32F405RGT6 ↔ PC 串口协议 V1（待与下位机组确认）
-
-已准备 [STM32 串口 V1 协议](docs/stm32-serial-v1.md) 和无额外依赖的 [Python 编码/解码参考实现](common/serial_protocol.py)。协议采用帧头 + 版本/类型/序号 + 长度 + 二进制数据 + CRC16，统一主轴角度/速度、可选测力、设备状态与目标制动幅值；USART+USB转串口与原生USB CDC可传相同字节。含三个逐字节测试样例和 8 项协议测试。
-
-**目前只冻结设计草案，尚未接真实串口或 STM32 固件。** 当前模拟 STM32 仍用 TCP 9101；VR ↔ PC 已是 UDP 9102。组内确认协议、方向、力传感器标定和真实失联安全动作后，再在 real/ 加入串口适配器，不改变 common/control.py。
-
-## PC 通信桥接（VR UDP 更新）
-
-新增 `common/`：唯一公共控制实现、JSON 消息格式、最新状态协调，以及 STM32 TCP / VR UDP 桥接。`sim/` 保留 MuJoCo，并增加模拟 STM32 / VR；`real/` 预留真实接口，本次未修改。原 A 默认基线、C 候选和 D 分析结果保持不变。
-
-**通信演示只需 Python 3.10+ 标准库，无需安装 MuJoCo。** Ubuntu 三个终端都进入 `/home/lyf/armwrestling`，分别执行：
-
-```bash
-python3 -m common.bridge
-python3 -m sim.mock_stm32
-python3 -m sim.mock_vr --demo-states
+```mermaid
+flowchart LR
+    Board["STM32 / 模拟 STM32"] <-->|"V1 二进制串口"| PC["PC 上位机：状态判断与阻力计算"]
+    PC <-->|"UDP V0.1：127.0.0.1:9102"| VR["Unity / VR 客户端"]
 ```
 
-Windows PowerShell 三个终端都进入仓库根目录（如 `cd "$HOME\armwrestling"`），分别执行：
-
-```powershell
-py -3 -m common.bridge
-py -3 -m sim.mock_stm32
-py -3 -m sim.mock_vr --demo-states
-```
-
-默认 PC 监听 `127.0.0.1:9101`（模拟 STM32，TCP）和 `127.0.0.1:9102`（VR，UDP）。按 Ctrl+C 退出；模拟客户端支持重连，`--duration 10` 可定时退出。模拟 STM32 发送角度/速度并用收到的制动幅值参与动力学；VR 心跳传角色编号和比赛状态，接收真实角度。`--demo-states` 周期切换运行/暂停，日志可观察制动力矩和状态变化。
-
-模拟 STM32 TCP 采用 **UTF-8 JSON + 换行**；VR UDP 采用 **每个数据报一个 UTF-8 JSON 对象（不需要换行）**。消息含 `v=1`、消息类型和递增 `seq`，角度 rad、速度 rad/s、力矩 N·m。四种消息：
-
-| 方向 / 类型 | 主要字段 |
-| --- | --- |
-| STM32 → PC / `telemetry` | `angle_rad`, `velocity_rad_s`, `device_status` |
-| VR → PC / `vr_update` | `character_id`, `match_state` |
-| PC → STM32 / `brake_command` | `mode`, `reason`, `target_torque_nm`, `brake_torque_nm`, `valid_for_ms` |
-| PC → VR / `status` | `angle_rad`（允许 null）、`mode`、`reason` |
-
-PC 不等待 VR 与控制同步；遥测超过 0.25 s、VR 超过 1 s、断连/设备故障/比赛非运行状态均停止模拟输出，设备还独立检查 200 ms 指令有效期。有符号力矩是 PC 采样结果，模拟设备按当前速度重新确定阻碍方向，避免延迟换向助推。**模拟零力矩不等于实机安全电流；真实安全策略和标定仍待确认。** Windows 使用跨平台标准库实现，本次实际执行验证环境为 Ubuntu。
-
-[完整协议、字段范围、错误处理、三终端说明与验证记录](docs/pc-bridge.md)。历史 `docs/analysis/bridge-v01/` 日志来自此前 TCP 演示，不是新 UDP 的实测日志；本次新增 UDP 数据报及切换来源测试。VR 必须周期发送完整 `vr_update` 心跳，PC 超时停用正常阻力。仅运行桥接测试：
-
-```bash
-python3 -m unittest common.test_bridge sim.test_bridge_clients sim.test_bridge_integration -v
-```
-
-## MuJoCo 阶段记录
-
-阶段安排：**A 保留默认基线，C 为优先研究候选，D 保留为分析备选**。暂不替换默认模型，不继续优化外观。新增 [候选 C 的现有控制观察](docs/control-c-observation.md)：自由区对应 q≤0.25 rad，越界线性增阻；返回在越界区仍受制动，释放不会自动回零。现有行程足以展示自由/增阻/返回，名义最大目标为 0.6 N·m，不能达到 0.8 N·m 封顶。
-
-为避开默认 0.5 N·m 输入过快触及限位的影响，可用已有输入参数观察 C：
-
-```bash
-.venv/bin/python -m sim.run --model sim/candidates/elbow_axis.xml --user-torque 0.15
-```
-
-1 下压，q≈0.4 时 0 释放，2 施力返回，接近零位 0 释放；零位不会自动停车。精确复现数据与曲线可运行 `.venv/bin/python -m sim.observe_c_control`，加 `--viewer` 可在窗口播放轻输入周期，需下述可选绘图依赖。此脚本不改 A/C 模型、控制律或原轨迹分析结果。
-
-已增加 [固定肘部与握持轨迹适配分析](docs/trajectory-fit.md)：比较四个布局，区分肘垫接触点、肘关节中心、手腕中心和握持中点。原模型仍为默认；可独立观察 `sim/candidates/elbow_axis.xml` 候选 C，不能把示例人体参数当作已确认尺寸。
-
-```bash
-.venv/bin/python -m sim.run --model sim/candidates/elbow_axis.xml
-```
-
-绘图可选依赖：`uv pip install --python .venv/bin/python -r sim/requirements-analysis.txt`。历史分析入口为 `.venv/bin/python -m sim.fit_analysis`，会重生成 C XML 和原轨迹数据；当前冻结阶段不需要运行它。新控制观察使用独立输出目录。不绘图时交互仿真无需 Matplotlib。
-
-单自由度被动力反馈扳手腕项目。`sim/` 验证自由空间阻力控制；`common/` 存放共用算法和 PC 桥接，`real/` 只预留实机软件。
-
-## 安装与启动
-
-已测试 Linux、Python 3.12.3、MuJoCo 3.17.0。在仓库根目录执行：
-
-```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m sim.run
-```
-
-本机已安装时直接运行：
-
-```bash
-cd /home/lyf/armwrestling
-.venv/bin/python -m sim.run
-```
-
-若环境没有 pip，可用 `uv pip install --python .venv/bin/python -r requirements.txt`。查看器需要图形桌面和 OpenGL。
-
-点击查看器使其取得键盘焦点。按键切换持续用户力矩，不必按住：
-
-| 操作 | 作用 |
-| --- | --- |
-| `1` / `2` / `0` | 获胜侧下压（负力矩） / 返回抬起（正力矩） / 释放用户力矩 |
-| 鼠标左键拖动 / 右键拖动 / 滚轮 | 旋转 / 平移 / 缩放自由相机 |
-| Shift 配合拖动 | 切换水平操作方向 |
-| Tab / Shift+Tab | 切换左右面板 |
-| 关窗 | 退出；Esc 为 MuJoCo 原生窗口/视角快捷键，不用作释放力矩 |
-
-获胜侧已统一为负关节方向：默认 `forward_sign=-1`、`q=-θ`。`1` 对应 -0.5 N·m，`2` 对应 +0.5 N·m；返回键是持续施力，不自动停在零位。完整核查与三个下压侧视状态见 [方向核查](docs/direction-check.md)。
-
-终端每约 0.25 s 输出角度、相对角度、边界、目标阻力、实际制动力矩和用户力矩。键盘输入通过 `qfrc_applied` 进入动力学，不直接修改关节角度。
-
-```bash
-.venv/bin/python -m sim.run --boundary 0.30 --stiffness 2.5 --max-brake 0.7 --user-torque 0.9
-```
-
-角度统一用弧度。`--duration 5` 在 5 秒后结束窗口测试。若用户力矩小于当前目标制动，低速近似会表现为缓慢移动。
-
-## 机械布局与参考依据
-
-已阅读 [资料说明](docs/references/README.md) 和 [简化草图](docs/references/armwrestling_layout.svg)。原始机械图没有提供；用户于 2026-11-07 补充说明目前没有具体图纸，允许按成人手臂的大致姿态设计。因此下述布局是草图支持下的**可运行近似**，不是对原始 CAD 的核对结论，也不是人体适配或加工尺寸。
-
-- 坐标：Z 向上，用户坐在桌面 `y < -0.45 m` 一侧，桌前蓝色短条表示用户位置。
-- 橙棕色肘垫中心 `(0, -0.30, 0.10) m`；初始握把中心 `(0, -0.192638, 0.49) m`，手从肘垫上举并略向桌内伸到握把。
-- 水平主轴沿 **+Y**，穿过 `(0.34, 0.007362, 0.16) m`，由前后两个轴承支座承托。后方保留传动护罩与磁粉制动器外壳。
-- 两根蓝色长杆平行安装，中心间距 0.11 m，每根中心线长约 0.439 m，由主轴轮毂连接到握把端横梁。它们与横梁构成同一个刚性摆臂，只有一个转动自由度；没有擅自增加四连杆铰链。
-- 握把长轴为 (0,-1,0)，水平朝向用户，平行于主轴；摆臂运动中仍保持这个世界朝向，不需要额外保姿机构。握把中心到主轴的垂距约 0.474 m，绕主轴在 `y=-0.192638 m` 的竖直平面内走圆弧；不会在桌面内水平扫动。
-- 关节正角度按 +Y 轴右手定则定义；获胜侧下压对应负角度，推进相对角 q 则为正。初始握把偏置 `r0=(-0.34,-0.20,0.33) m`，轨迹为 `p(θ)=p_axis + Ry(θ)r0`。限位范围 `[-0.55,1.2] rad` 仅用于这个示意布局。
-
-双杆初始侧视抬升角从 V0.3 的 19.35° 恢复到 36.33°，端部相对主轴抬升 0.25 m、前伸 0.12 m。主轴靠右且降低，握把升高，而非压低摆臂来靠近肘垫。本次只改水平握持结构：保留主轴与双杆，在端横梁上增加 0.08 m 刚性短支座，使水平握把与杆件分开。握把长 0.16 m、半径 0.025 m；肘垫移到 Y=-0.30，握持中点前后距离约 0.10736 m，左右仍对齐。详细图像、数学证明、间隙及人体动作限制见 [水平握把验证](docs/horizontal-grip.md)。
-
-[历史抬升对照](docs/layout-raised-zero.md) 包含已有草图、V0.3、新版的图像，以及同一相机/同一零位的斜俯视和侧视比较。原始图仍未提供，不能把已有草图称作原始 CAD。历史 [V0.3 对照](docs/layout-v03.md) 保留记录，当前参数以本节和水平握把验证为准。
-
-默认自由相机采用方位 125°、俯角 35°；已比较同一姿态下的三个方位。
-
-用户坐在蓝色短条一侧，把肘放在橙色垫上，手上举握住水平朝向自己的圆柱。**初始握持示意与全行程人体适配不同：当前固定肘参考点到握持中点的距离会显著变化，不能声称全程符合刚性前臂或手腕的自然运动。** 原因和量化结果见 [水平握把验证](docs/horizontal-grip.md)。
-
-![水平握把整体](docs/previews/horizontal/oblique-zero.png)
-
-[用户正面](docs/previews/horizontal/front-zero.png)、[前臂侧面](docs/previews/horizontal/side-zero.png)、[零位/下压对照](docs/previews/horizontal/direction-comparison.png)。上一版 20° 方案留在 [历史用户握持布局](docs/operator-layout.md)，不再是当前朝向。
-
-## 重力与被动配平假设
-
-直接把旧模型改成水平 Y 轴，沿用旧的 1 kg 质量和偏置质心，会在零位产生约 **1.97 N·m** 的重力矩；这是旧质量模型的诊断值，不是对真实装置的测量。它超过默认制动上限 0.8 N·m，会使自重运动掩盖控制效果。磁粉制动器不能靠主动驱动抵消它。
-
-本版保留 `gravity=(0,0,-9.81) m/s²`，将整个运动组件理想化为**已通过被动质量配平、总质心落在主轴上**的刚体。这样重力势能不随转角变化，关节重力矩为零。主轴后的小块仅示意被动配重；没有据其外形推断实际配重质量。
-
-XML 显式指定运动组件质量 1 kg、质心在主轴、主轴等效惯量约 0.054695 kg·m²（沿用旧模型的转动惯量），装饰几何不再从外形自动估计质量。没有电机，没有 `gravcomp`，也没有任何补偿重力的控制力矩。真实结构能否实现这种配平、需要多少配重，仍需机械设计确认。未配平的真实设备将存在重力偏置，本仿真不代表其真实手感。
-
-## 控制律与阻力可视化
-
-`common/control.py` 存放唯一控制实现，`sim/control.py` 保留兼容导入；原控制律不变，且不依赖 MuJoCo：
+| 部分 | 负责什么 | 主要入口或约定 |
+|---|---|---|
+| PC 上位机 | 接收机械状态、判断比赛与通信状态、计算阻力、回传角度 | 串口入口 `real.run`；TCP 模拟入口 `common.bridge` |
+| STM32 | 采集角度与速度、执行制动指令、处理本地使能和故障保护 | [串口 V1 草案](docs/stm32-serial-v1.md)，需与下位机组确认并实现 |
+| Unity/VR | 发送角色编号和比赛状态，接收机械角度驱动自己的模型 | [UDP V0.1](docs/vr-udp-v01.md)，同一个 UDP socket 收发 |
+| 测试程序 | 代替暂未接入的设备，检查通信和状态变化 | `sim/` 的模拟设备；`tests/` 的联调工具 |
 
 ```text
-q = s(θ - θ0)
-M(q) = min(Mmax, K × max(0, q - qb))
-τb = -M(q) × clamp(ω / ωε, -1, +1)
+armwrestling/
+├── common/
+│   ├── control.py          公共阻力算法
+│   ├── state.py            比赛状态、数据有效性和超时处理
+│   ├── serial_protocol.py  STM32 V1 二进制帧编解码
+│   ├── protocol.py         UDP JSON 与旧 TCP JSON 校验
+│   ├── console.py          中文终端显示与 JSON 日志
+│   └── bridge.py           PC 的 TCP 模拟 + UDP 入口
+├── real/
+│   ├── run.py              PC 的串口 V1 + UDP 入口
+│   └── stm32_link.py       串口读写、会话握手和遥测解析
+├── sim/
+│   ├── mock_stm32.py       TCP 模拟下位机，供快速测试 UDP
+│   ├── mock_stm32_serial.py  V1 模拟下位机，支持 Windows COM / Linux PTY
+│   ├── mock_vr.py          Python UDP 测试客户端
+│   └── run.py / arm.xml    独立的 MuJoCo 力学仿真
+├── tests/
+│   ├── unity/             Unity 测试客户端、摆臂和编辑器联调工具
+│   └── serial/            实际 COM 端口对的协议检查
+└── docs/                  协议、操作说明和测试记录
 ```
 
-默认 `θ0=0`、`s=-1`、`qb=0.25 rad`、`K=2.0 N·m/rad`、`Mmax=0.8 N·m`、`ωε=0.05 rad/s`；按键用户力矩幅值 0.5 N·m。当前负侧限位 -0.55 rad 内最高目标阻力约 0.6 N·m；公式的 0.8 N·m 上限仍保留，其对应角度超出当前下压行程。低速过渡连续且始终满足 `τbω≤0`，静止时无静态保持力矩。
+`common/bridge.py` 和 `real/run.py` 是两种 PC 启动方式，运行时选一个。两者都会占用 UDP 9102，不能同时启动。PC 正式程序不引用 `tests/unity/`。
 
-自由空间边界改为安装在主轴前端、半径 0.055 m 的圆形刻度盘：深色短线是零位，黄色短刻度是边界。盘面垂直于主轴；黄色刻度的径向方向对应握把在边界转角处的圆弧方向，启动时按 `--boundary` 更新（默认 θ=-0.25 rad）。刻度盘与轴端相连，没有悬空长杆。
+## 交接通信测试：先跑通 VR ↔ PC
 
-橙红色箭头表示**实际制动力矩**。令世界主轴单位向量为 `a`，轴到握把的向量为 `r`，切向 `t=(a×r)/|a×r|`。箭头方向由 `τb t` 决定，长度为 `0.22|τb| m`，不是以牛顿为单位的接触力测量。箭头起点沿握把自身轴向抬高 0.11 m，随握把倾斜一起移动；`|τb|<1e-6 N·m` 时隐藏。
+这条路线适合 VR 同学拿到仓库后先确认自己的 UDP 客户端能用。模拟 STM32 通过 TCP 提供机械状态，PC 仍然执行现有控制计算；这一步只验证 UDP，不算串口 V1 验证。
 
-`sim/visualization.py` 用 `mjv_initGeom` / `mjv_connector` 在 `viewer.user_scn` 中重建箭头；持有 `viewer.lock()` 修改场景，再由 `viewer.sync()` 显示。几何仅绘图、不施力、不参与碰撞。计算不再假定主轴竖直。接口见 [MuJoCo 官方 Python 文档](https://mujoco.readthedocs.io/en/latest/python.html)。
+### 1. 准备 Python 环境
 
-## 验证与限制
+需要 Python 3.10+ 和 Git。Windows PowerShell 首次下载时执行：
 
-```bash
-.venv/bin/python -m unittest discover -v
+```powershell
+git clone https://github.com/Ihtbfas/armwrestling.git
+cd armwrestling
+python --version
+python -m venv .venv
 ```
 
-原桥接版本曾报告 47 项测试；本次另新增 2 项 UDP 测试。既有 30 项控制/MuJoCo 测试，包括自由区、线性增长、封顶、零速过渡、方向和制动功率，以及机械轨迹和可视化；另有 17 项桥接协议、状态、看门狗及真实 TCP 子进程测试。
+已有仓库就进入自己的仓库根目录，按需执行 `git pull --ff-only origin main`。下面所有终端都在仓库根目录运行；命令里的 `python` 如果不可用，可按本机安装情况改为 `py -3`。
 
-实际打开查看器，从用户正面、前臂侧面、斜俯视运行下压/返回，检查三个零位视角和同相机下压图；另在完整角范围验证握把朝向恒定，在负角全行程验证几何间隙。人体全行程合理性未作为已通过项目。自动脚本输入用于复现，未把无界面测试当作窗口验证。
+这条 TCP + UDP 路线只用 Python 标准库，不需要安装 `requirements.txt`。该文件是 MuJoCo 仿真的依赖。
 
-当前没有人体和真实接触约束；装饰碰撞禁用。肘垫不会约束用户肘部，未证明整个行程对人体可达或舒适。没有传动弹性、摩擦辨识、磁滞、延迟或热模型；握把的真实连接形式和配平方案仍需机械组确认。`real/` 本次未修改。
+### 2. 启动 PC 和模拟下位机
 
-未来可复用纯 Python 控制律的逻辑与单位约定；实机仍需传感器方向、零位、速度估计、电流到制动力矩标定和故障处理。
+打开两个 PowerShell 窗口，分别运行：
+
+```powershell
+# 窗口一：PC 上位机，监听 TCP 9101 和 UDP 9102
+.\.venv\Scripts\python.exe -m common.bridge
+```
+
+```powershell
+# 窗口二：模拟 STM32，产生角度并接收 PC 制动指令
+.\.venv\Scripts\python.exe -m sim.mock_stm32
+```
+
+此时 PC 提示“尚未收到 Unity 比赛状态”是正常的，下一步启动客户端即可。终端交互模式默认显示中文面板，Ctrl+C 退出。
+
+### 3. 启动要交接的 Unity 客户端
+
+VR 同学可以直接运行自己的客户端；用本仓库的测试摆臂时：
+
+1. 在 Unity 中创建普通 3D 测试工程。本次测试版本是 `2022.3.62f3c1`，无需安装 XR 包。
+2. 把 `tests/unity/` 中的两个 C# 文件复制到工程的 `Assets/ArmWrestling/`，把 `Editor/ArmWrestlingDemoTools.cs` 放到其 `Editor/` 子目录。
+3. 等编译完成，执行菜单 **Arm Wrestling → Create UDP Demo Scene**，然后点击 **Play → Game → running**。
+
+新工程需要这几步；已有本机 `UnityUdpDemo` 工程可直接打开 `Assets/Scenes/UdpDemo.unity`。这个独立工程放在仓库外，Git 不包含它的 `Library/`、场景缓存等文件。详细配置见 [Unity 测试说明](docs/windows-unity-udp-test.md)。
+
+Unity 运行时不要再启动 `sim.mock_vr`，否则会有两个客户端竞争 PC 的单个 VR 会话。没有 Unity、只想检查 Python 链路时，可以另开终端运行 `python -m sim.mock_vr --demo-states`；这一结果不能代替 Unity 联调。
+
+### 4. 确认操作确实到达 PC
+
+先确认 Unity 显示 connected，PC 显示“下位机数据正常”“Unity 心跳正常”，再切换按钮：
+
+| Unity 操作 | PC 应返回 | 观察什么 |
+|---|---|---|
+| `waiting` | `stop / match_waiting` | 等待开始，目标阻力为 0 |
+| `running` | `enabled / running` | 正常计算阻力，进入阻力区后目标值增加 |
+| `paused` | `stop / match_paused` | 目标阻力归 0，原因变为比赛暂停 |
+| `finished` | `stop / match_finished` | 目标阻力归 0，原因变为比赛结束 |
+
+这里的按钮切换比赛状态。模拟器中的“模拟人”一直按“下压 3 秒、回推 3 秒、松手 2 秒”循环施力；暂停比赛后，机械臂仍可能运动，角度也会继续回传。当前没有按钮触发的回零、冻结动画或胜负演出。
+
+默认阻力区从 `−0.25 rad`（约 `−14.3°`）开始。比如角度为 `−0.4 rad` 时，running 的目标阻力约为 `0.3 N·m`，paused 则为 0。在正角度一侧点击 running，目标值仍可能为 0。比较按钮效果时，先看 PC 的状态和目标阻力，再看运动变化。
+
+## VR 同学需要实现的通信
+
+当前测试都在同一台 Windows 电脑上，PC 监听 `127.0.0.1:9102`。`127.0.0.1` 指各程序所在的本机；从头显或另一台电脑连接需要另行配置网络地址和绑定方式。
+
+Unity 每约 200 ms 用同一个 UDP socket 发送完整状态，并通过这个 socket 接收 PC 回复。每个数据报是一个 UTF-8 JSON 对象，无 BOM、无换行，最多 8192 字节。不能只在点击按钮时发一次。
+
+Unity → PC：
+
+```json
+{"v":1,"type":"vr_update","seq":0,"character_id":"demo","match_state":"running"}
+```
+
+PC → Unity：
+
+```json
+{"v":1,"type":"status","seq":20,"angle_rad":-0.4,"mode":"enabled","reason":"running"}
+```
+
+两端 `seq` 各自从 0 起递增，重复、乱序消息忽略；新会话允许重新计数。PC 状态的目标发送周期是 20 ms，实际频率受系统调度影响，客户端不要依赖每个包都到达。
+
+角度单位是 rad，0 为机械零位，获胜侧下压为负。`angle_rad=null` 表示没有有效角度，客户端应保留最后姿态并提示数据无效。`mode=stop` 时仍可能有有效角度，可以继续更新模型。角色编号目前用于记录，不自动切换阻力策略；VR 消息不传角速度、刚度或力矩上限。
+
+`enabled` 表示 PC 正在正常计算，实物的本地使能和急停保护仍由下位机处理。
+
+交接时双方按 [UDP V0.1 完整约定](docs/vr-udp-v01.md) 对照字段、超时和源端口规则。PC 只接受一个有效 VR 发送端，超过 1 秒没有有效心跳后停止正常控制并释放该来源。重进 Play 后可等待约 1 秒再确认连接。
+
+## 再验证 STM32 V1：Windows 虚拟串口路线
+
+这条路线用 `real.run` 替换前面的 `common.bridge`，用串口模拟器替换 TCP 模拟器。Unity 客户端和 UDP 协议保持原样。
+
+先准备一对可用的 Windows 虚拟 COM 口。本机已有 `COM1 ↔ COM2`，其他电脑要按实际配置替换端口号。Ubuntu 的 `/dev/pts/N` 不能在 Windows 直接使用。安装串口依赖：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install pyserial==3.5
+```
+
+关闭上一条路线的两个 Python 程序，然后在两个终端分别运行：
+
+```powershell
+# 窗口一：模拟 STM32，打开 COM2
+.\.venv\Scripts\python.exe -m sim.mock_stm32_serial --port COM2 --demo-arm
+```
+
+```powershell
+# 窗口二：PC 上位机，打开配对的 COM1
+.\.venv\Scripts\python.exe -m real.run --port COM1
+```
+
+确认 PC 的“V1 会话已确认”“本地使能许可已获得”，再在 Unity 依次检查四种状态。COM 中传输的是 V1 二进制帧，包含会话编号、序号与 CRC16，串口参数为 115200 / 8N1。`--demo-arm` 只授权软件模拟器，不是发给真实 STM32 的启动参数。
+
+`--log-file "$env:TEMP\armwrestling-pc.jsonl"` 可在中文面板之外保存详细日志；`--display json` 可切回逐行 JSON。完整操作和测试命令见 [Windows 串口与终端说明](docs/windows-serial-operator-guide.md)。
+
+## 怎样判断交接测试通过
+
+| 检查 | 应看到的结果 |
+|---|---|
+| 双向 UDP | Unity 发送和接收计数持续增加；PC 能看到角色与比赛状态 |
+| 角度同步 | 模拟下位机角度变化，Unity 按 rad 转换为度驱动摆臂 |
+| 比赛切换 | PC 返回上表的状态和原因；退出 running 后目标阻力为 0 |
+| 下位机停止 | PC 返回空角度并停止正常控制；Unity 保持姿态、提示无效 |
+| Unity 停止 Play | 约 1 秒后 PC 提示 Unity 心跳超时，目标阻力为 0 |
+| 重新运行 | Unity 重进 Play 或模拟器重启后，恢复有效数据和状态切换 |
+| V1 串口路线 | 会话握手完成；running 且进入阻力区时，模拟器收到指令并产生非零模拟制动 |
+
+联调结束记录使用的提交、PC 入口、端口、Unity 版本和异常现象。串口路线还应记录 COM 配对。PC 计算值、下位机回报的目标幅值和传感器实测力矩是不同的数据，记录时写清来源。
+
+2026-11-15 已在 Windows 11、Python 3.11.5、pyserial 3.5、Unity 2022.3.62f3c1 上完成：45 项 Python 测试通过、1 项 Linux PTY 测试跳过，6 项实际 COM 协议检查通过，23 项真正的 Unity＋COM 链路检查通过。结果见 [V1 串口测试记录](docs/test-results/2026-11-15-windows-serial.json)；早期 TCP＋Unity 的 [22 项检查记录](docs/test-results/2026-11-15-unity-udp.json) 单独保留。这些是已记录的测试结果，后续换版本或设备应重新验证。
+
+实体 STM32、头显及 IL2CPP 构建还没有联调。串口 V1 仍需下位机组确认并实现相应固件；真实设备的人工使能、故障保护和标定不能由软件模拟结果代替。
+
+## 接真实 STM32 时怎么换
+
+停止模拟下位机，让 PC 的 `real.run --port` 指向真实设备端口，例如 `COM9`。先核对 [V1 协议](docs/stm32-serial-v1.md) 的会话、遥测标志和本地保护，再验证角度零位、方向及制动幅值。PC 的公共算法和 VR UDP 接口继续使用原实现。运行入口见 [real/README.md](real/README.md)。
+
+## 常见问题
+
+| 现象 | 先检查 |
+|---|---|
+| PC 一直等待 Unity | Unity 是否在 Play，是否每 200 ms 发完整心跳，目标是否为 UDP 9102 |
+| Unity 显示正常，PC 却心跳超时 | 对照同一时刻的最新状态；看发送计数是否继续增加，是否停止 Play、暂停编辑器或脚本不再更新 |
+| running 但阻力为 0 | 是否进入负角度阻力区；机械数据、Unity 心跳和本地许可是否都有效 |
+| 停止或暂停后摆臂仍在动 | 这是当前模拟规则：模拟人继续施力，停止的是制动控制 |
+| UDP 9102 被占用 | 是否重复启动 PC，或同时运行了 `common.bridge` 与 `real.run` |
+| 新 Unity 客户端收不到状态 | 是否还有另一个 Unity/Python VR 客户端占用会话；旧心跳停下后等待约 1 秒 |
+| 串口打不开或没有握手 | COM 是否存在、两端是否配对，是否被其他程序占用，串口参数是否一致 |
+| 会话已确认但没有本地许可 | 软件模拟器是否使用 --demo-arm；实机则检查下位机的本地使能和故障标志 |
+
+## 仿真研究与其他文档
+
+MuJoCo 用于单独研究机械布局和控制手感，不参与上述通信测试。需要时再安装和启动：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m sim.run
+```
+
+查看器中 `1` 下压、`2` 回推、`0` 松手。模型假设和控制推导见 [MuJoCo 阶段与模型记录](docs/project-history-20261115.md)。这些模型此前在 Linux 上验证，本次 Windows 通信联调没有重新验证 MuJoCo 查看器。
+
+| 文档 | 内容 |
+|---|---|
+| [VR UDP V0.1](docs/vr-udp-v01.md) | VR 同学对接时使用的字段与时序 |
+| [STM32 串口 V1](docs/stm32-serial-v1.md) | 下位机组待确认的二进制协议和样例 |
+| [Windows 串口与中文终端](docs/windows-serial-operator-guide.md) | COM 启动、面板含义、自动测试与证据 |
+| [Unity 测试工程配置](docs/windows-unity-udp-test.md) | 参考客户端、场景生成和移植边界 |
+| [Linux PTY 路线](docs/serial-pty-demo.md) | Ubuntu 上的 V1 软件串口测试 |
+| [机械布局与轨迹分析](docs/trajectory-fit.md) | 原布局和候选方案的人体轨迹适配分析 |
+| [待办记录](TASKS.md) | 各阶段已做和待做事项 |
