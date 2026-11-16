@@ -26,6 +26,7 @@ armwrestling/
 ├── common/
 │   ├── control.py          公共阻力算法
 │   ├── characters.py       demo 基线和三个示例人物的资料、演示参数
+│   ├── strength_response.py  人物阻力缓升、下降与复位
 │   ├── state.py            比赛状态、数据有效性和超时处理
 │   ├── serial_protocol.py  STM32 V1 二进制帧编解码
 │   ├── protocol.py         UDP JSON 与旧 TCP JSON 校验
@@ -135,9 +136,11 @@ PC → Unity：
 
 交接时双方按 [UDP V0.1 完整约定](docs/vr-udp-v01.md) 对照字段、超时和源端口规则。PC 只接受一个有效 VR 发送端，超过 1 秒没有有效心跳后停止正常控制并释放该来源。重进 Play 后可等待约 1 秒再确认连接。
 
-## 角色库 V0.1
+## 人物角色库
 
-`demo` 保留原控制输出；`person_01`、`person_02`、`person_03` 是按年龄、性别和训练背景描述的三个虚构人物。基础阻力参数是手工指定的演示值，不能用于推断真实人群力量。人物资料、参数表和确认规则见 [角色库说明](docs/character-library-v01.md)。
+`demo` 保留原控制输出；`person_01`、`person_02`、`person_03` 是按年龄、性别和训练背景描述的三个虚构人物。基础阻力参数是手工指定的演示值，不能用于推断真实人群力量。人物资料和静态参数见 [V0.1 说明](docs/character-library-v01.md)。
+
+V0.2 为三个人物增加 `0.15 / 0.40 / 0.80 秒`的阻力建立时间常数；demo 为 0，仍立即输出原结果。只有增加阻力时缓升，目标降低、自由区、暂停、故障和通信超时不等待缓降。实际 Unity 选角、模型规则和固定输入 CSV 见 [V0.2 说明](docs/character-library-v02.md)。
 
 PC 首次收到有效 VR 状态时确定初始人物。此后 running 中保持原人物，只有 waiting、paused、finished 消息才确认新选择；未知 ID 按 demo 处理，PC 面板会显示请求编号、生效人物及待确认/回退提示。UDP 字段保持原样。
 
@@ -147,7 +150,9 @@ PC 首次收到有效 VR 状态时确定初始人物。此后 running 中保持�
 .\.venv\Scripts\python.exe -m sim.mock_vr --character-id person_02 --demo-states
 ```
 
-`python -m common.characters` 可打印相同角度下的目标阻力对照。新人物只调整基础参数，发力策略库还未展开。
+`python -m common.characters` 可打印相同角度下的目标阻力对照。人物库目前设置基础阻力和建立常数，发力策略库还未展开。
+
+打印的是静态目标；要看随时间建立的数据，可运行 `python tests/characters/response_table.py`。PC 面板会分开显示静态目标和当前下发幅值。
 
 ## 再验证 STM32 V1：Windows 虚拟串口路线
 

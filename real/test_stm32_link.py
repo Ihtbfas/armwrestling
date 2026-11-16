@@ -51,11 +51,21 @@ class SerialLinkTests(unittest.TestCase):
         update = dict(v=1, type='vr_update', seq=0, character_id='person_02', match_state='waiting')
         state.receive('vr', update, .01)
         state.receive('vr', dict(update, seq=1, match_state='running'), .02)
-        link.send_command(state.outputs(.03)[0], .03)
+        self.assertEqual(state.outputs(.03)[0]['target_torque_nm'], 0.)
+        # Retain the original exact V1 225 mN*m assertion after the V0.2 rise
+        # has settled enough to round to the same integer wire magnitude.
+        for i in range(1, 71):
+            now = .03+i*.05
+            fake.incoming.extend(telemetry_frame(i, -400, -200, 0, FLAG_READY | FLAG_ARM_READY))
+            state.receive('stm32', link.poll(now)[0], now)
+            state.receive('vr', dict(update, seq=i+1, match_state='running'), now)
+            output, status = state.outputs(now)
+        self.assertAlmostEqual(status['base_target_torque_nm'], .225)
+        link.send_command(output, now)
         command = decode_payload(fake.sent_frame())
         self.assertEqual((command.mode, command.target_torque_mnm), (MODE_ENABLE, 225))
-        state.receive('vr', dict(update, seq=2, match_state='paused'), .04)
-        link.send_command(state.outputs(.05)[0], .05)
+        state.receive('vr', dict(update, seq=72, match_state='paused'), now+.01)
+        link.send_command(state.outputs(now+.02)[0], now+.02)
         command = decode_payload(fake.sent_frame())
         self.assertEqual((command.mode, command.target_torque_mnm), (MODE_STOP, 0))
 

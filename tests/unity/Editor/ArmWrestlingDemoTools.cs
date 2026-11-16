@@ -90,8 +90,19 @@ public static class ArmWrestlingDemoTools
     // CLI opt-in only. SessionState survives the real Play/domain-reload cycle.
     public static void RunIntegration()
     {
+        StartCheck(true);
+    }
+
+    public static void RunCharacterCheck()
+    {
+        StartCheck(false);
+    }
+
+    static void StartCheck(bool createScene)
+    {
         RunProtocolChecks();
-        CreateDemoScene();
+        if (createScene) CreateDemoScene();
+        else EditorSceneManager.OpenScene("Assets/Scenes/UdpDemo.unity");
         string results = Path.GetFullPath(Path.Combine(Application.dataPath, "../TestResults"));
         string[] args = Environment.GetCommandLineArgs();
         int resultIndex = Array.IndexOf(args, "-armUdpResults");
@@ -104,12 +115,13 @@ public static class ArmWrestlingDemoTools
         EditorApplication.EnterPlaymode();
     }
 
-    [Serializable] sealed class Command { public int id; public string action; public string state; }
+    [Serializable] sealed class Command { public int id; public string action; public string state; public string character_id; }
     [Serializable] sealed class Sample
     {
         public double time;
         public bool playing, fresh, validAngle;
-        public int port, sent, received, ignored;
+        public int port, sent, received, ignored, commandId;
+        public string characterId = "";
         public long seq;
         public string match = "", mode = "", reason = "", statusJson = "", updateJson = "";
         public double angle;
@@ -133,6 +145,7 @@ public static class ArmWrestlingDemoTools
                 {
                     SessionState.SetInt(CommandKey, command.id);
                     if (command.action == "state" && client != null) client.SetMatchState(command.state);
+                    else if (command.action == "character" && client != null) client.characterId = command.character_id;
                     else if (command.action == "stop") EditorApplication.ExitPlaymode();
                     else if (command.action == "play") EditorApplication.EnterPlaymode();
                     else if (command.action == "reload") EditorUtility.RequestScriptReload();
@@ -148,6 +161,8 @@ public static class ArmWrestlingDemoTools
             if (client != null)
             {
                 sample.fresh = client.HasFreshStatus;
+                sample.commandId = SessionState.GetInt(CommandKey, 0);
+                sample.characterId = client.characterId;
                 sample.validAngle = client.HasValidAngle;
                 sample.port = client.LocalPort;
                 sample.sent = client.SentCount;

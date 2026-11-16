@@ -1,0 +1,379 @@
+{
+  "date": "2026-11-16",
+  "base_commit": "7d119f1e751e78c9bd7e55222af86e1fb2008958",
+  "platform": "Windows 11",
+  "python": "3.11.5",
+  "unity": "2022.3.62f3c1",
+  "result": "PASS",
+  "python_tests": {
+    "run": 67,
+    "passed": 66,
+    "skipped": 1,
+    "skip_reason": "Linux PTY-specific test on Windows"
+  },
+  "unity_before_v02": {
+    "result": "PASS",
+    "checks": 33,
+    "editor_snapshots": 117,
+    "fixed_tcp_commands": 224,
+    "check_names": [
+      "real Editor Play + moving mock STM32",
+      "Unity requests person_02; PC uses person_02",
+      "Unity state running",
+      "Unity requests person_03; PC uses person_02",
+      "running request is deferred",
+      "Unity state paused",
+      "pause confirms person_03 with zero output",
+      "Unity state running",
+      "Unity state waiting",
+      "Unity requests demo; PC uses demo",
+      "Unity state running",
+      "moving device stopped -> null/STOP",
+      "fixed test telemetry: -0.4 rad / -0.2 rad/s",
+      "Unity state waiting",
+      "Unity requests person_01; PC uses person_01",
+      "Unity state running",
+      "fixed-state person_01 target approaches 0.150 N*m",
+      "Unity state waiting",
+      "Unity requests person_02; PC uses person_02",
+      "Unity state running",
+      "fixed-state person_02 target approaches 0.225 N*m",
+      "Unity state waiting",
+      "Unity requests person_03; PC uses person_03",
+      "Unity state running",
+      "fixed-state person_03 target approaches 0.270 N*m",
+      "Unity state waiting",
+      "Unity requests demo; PC uses demo",
+      "Unity state running",
+      "fixed-state demo target approaches 0.300 N*m",
+      "Unity state paused",
+      "Unity pause stops output",
+      "actual Unity wire fields unchanged",
+      "clean Editor compile, protocol checks and exit"
+    ],
+    "same_state": [
+      {
+        "active_character_id": "person_01",
+        "character_id": "person_01",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": null,
+        "target_torque_nm": 0.15000000000000002,
+        "character_rise_time_constant_s": null
+      },
+      {
+        "active_character_id": "person_02",
+        "character_id": "person_02",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": null,
+        "target_torque_nm": 0.22500000000000003,
+        "character_rise_time_constant_s": null
+      },
+      {
+        "active_character_id": "person_03",
+        "character_id": "person_03",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": null,
+        "target_torque_nm": 0.2700000000000001,
+        "character_rise_time_constant_s": null
+      },
+      {
+        "active_character_id": "demo",
+        "character_id": "demo",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": null,
+        "target_torque_nm": 0.30000000000000004,
+        "character_rise_time_constant_s": null
+      }
+    ],
+    "selection_proof": [
+      {
+        "check": "running request is deferred",
+        "pc": {
+          "reason": "running",
+          "mode": "enabled",
+          "character_id": "person_03",
+          "active_character_id": "person_02",
+          "character_selection_deferred": true,
+          "target_torque_nm": 0.0
+        },
+        "unity_sent": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 8,
+          "character_id": "person_03",
+          "match_state": "running"
+        },
+        "unity_received": {
+          "v": 1,
+          "type": "status",
+          "seq": 2253,
+          "angle_rad": 0.6,
+          "mode": "enabled",
+          "reason": "running"
+        }
+      },
+      {
+        "check": "pause confirms person_03 with zero output",
+        "pc": {
+          "reason": "match_paused",
+          "mode": "stop",
+          "character_id": "person_03",
+          "active_character_id": "person_03",
+          "character_selection_deferred": false,
+          "target_torque_nm": 0.0
+        },
+        "unity_sent": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 10,
+          "character_id": "person_03",
+          "match_state": "paused"
+        },
+        "unity_received": {
+          "v": 1,
+          "type": "status",
+          "seq": 2269,
+          "angle_rad": 0.6,
+          "mode": "stop",
+          "reason": "match_paused"
+        }
+      },
+      {
+        "check": "Unity pause stops output",
+        "pc": {
+          "reason": "match_paused",
+          "mode": "stop",
+          "character_id": "demo",
+          "active_character_id": "demo",
+          "character_selection_deferred": false,
+          "target_torque_nm": 0.0
+        },
+        "unity_sent": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 62,
+          "character_id": "demo",
+          "match_state": "paused"
+        },
+        "unity_received": {
+          "v": 1,
+          "type": "status",
+          "seq": 2573,
+          "angle_rad": -0.4,
+          "mode": "stop",
+          "reason": "match_paused"
+        }
+      }
+    ]
+  },
+  "unity_after_v02": {
+    "result": "PASS",
+    "checks": 33,
+    "editor_snapshots": 185,
+    "fixed_tcp_commands": 445,
+    "check_names": [
+      "real Editor Play + moving mock STM32",
+      "Unity requests person_02; PC uses person_02",
+      "Unity state running",
+      "Unity requests person_03; PC uses person_02",
+      "running request is deferred",
+      "Unity state paused",
+      "pause confirms person_03 with zero output",
+      "Unity state running",
+      "Unity state waiting",
+      "Unity requests demo; PC uses demo",
+      "Unity state running",
+      "moving device stopped -> null/STOP",
+      "fixed test telemetry: -0.4 rad / -0.2 rad/s",
+      "Unity state waiting",
+      "Unity requests person_01; PC uses person_01",
+      "Unity state running",
+      "fixed-state person_01 target approaches 0.150 N*m",
+      "Unity state waiting",
+      "Unity requests person_02; PC uses person_02",
+      "Unity state running",
+      "fixed-state person_02 target approaches 0.225 N*m",
+      "Unity state waiting",
+      "Unity requests person_03; PC uses person_03",
+      "Unity state running",
+      "fixed-state person_03 target approaches 0.270 N*m",
+      "Unity state waiting",
+      "Unity requests demo; PC uses demo",
+      "Unity state running",
+      "fixed-state demo target approaches 0.300 N*m",
+      "Unity state paused",
+      "Unity pause stops output",
+      "actual Unity wire fields unchanged",
+      "clean Editor compile, protocol checks and exit"
+    ],
+    "same_state": [
+      {
+        "active_character_id": "person_01",
+        "character_id": "person_01",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": 0.15000000000000002,
+        "target_torque_nm": 0.14960519555234703,
+        "character_rise_time_constant_s": 0.15
+      },
+      {
+        "active_character_id": "person_02",
+        "character_id": "person_02",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": 0.22500000000000003,
+        "target_torque_nm": 0.2244928252183394,
+        "character_rise_time_constant_s": 0.4
+      },
+      {
+        "active_character_id": "person_03",
+        "character_id": "person_03",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": 0.2700000000000001,
+        "target_torque_nm": 0.2694367761011506,
+        "character_rise_time_constant_s": 0.8
+      },
+      {
+        "active_character_id": "demo",
+        "character_id": "demo",
+        "angle_rad": -0.4,
+        "velocity_rad_s": -0.2,
+        "base_target_torque_nm": 0.30000000000000004,
+        "target_torque_nm": 0.30000000000000004,
+        "character_rise_time_constant_s": 0.0
+      }
+    ],
+    "selection_proof": [
+      {
+        "check": "running request is deferred",
+        "pc": {
+          "reason": "running",
+          "mode": "enabled",
+          "character_id": "person_03",
+          "active_character_id": "person_02",
+          "character_selection_deferred": true,
+          "target_torque_nm": 0.06680063266248737
+        },
+        "unity_sent": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 6,
+          "character_id": "person_03",
+          "match_state": "running"
+        },
+        "unity_received": {
+          "v": 1,
+          "type": "status",
+          "seq": 301,
+          "angle_rad": -0.34114629642341066,
+          "mode": "enabled",
+          "reason": "running"
+        }
+      },
+      {
+        "check": "pause confirms person_03 with zero output",
+        "pc": {
+          "reason": "match_paused",
+          "mode": "stop",
+          "character_id": "person_03",
+          "active_character_id": "person_03",
+          "character_selection_deferred": false,
+          "target_torque_nm": 0.0
+        },
+        "unity_sent": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 9,
+          "character_id": "person_03",
+          "match_state": "paused"
+        },
+        "unity_received": {
+          "v": 1,
+          "type": "status",
+          "seq": 317,
+          "angle_rad": -0.55,
+          "mode": "stop",
+          "reason": "match_paused"
+        }
+      },
+      {
+        "check": "Unity pause stops output",
+        "pc": {
+          "reason": "match_paused",
+          "mode": "stop",
+          "character_id": "demo",
+          "active_character_id": "demo",
+          "character_selection_deferred": false,
+          "target_torque_nm": 0.0
+        },
+        "unity_sent": {
+          "v": 1,
+          "type": "vr_update",
+          "seq": 95,
+          "character_id": "demo",
+          "match_state": "paused"
+        },
+        "unity_received": {
+          "v": 1,
+          "type": "status",
+          "seq": 843,
+          "angle_rad": -0.4,
+          "mode": "stop",
+          "reason": "match_paused"
+        }
+      }
+    ]
+  },
+  "actual_unity_fixed_state_rise": {
+    "demo": {
+      "samples": 2,
+      "first": 0.30000000000000004,
+      "last": 0.30000000000000004,
+      "base": 0.30000000000000004,
+      "tau": 0.0
+    },
+    "person_01": {
+      "samples": 2,
+      "first": 0.1376872502064152,
+      "last": 0.14960519555234703,
+      "base": 0.15000000000000002,
+      "tau": 0.15
+    },
+    "person_02": {
+      "samples": 5,
+      "first": 0.14366305005232063,
+      "last": 0.2244928252183394,
+      "base": 0.22500000000000003,
+      "tau": 0.4
+    },
+    "person_03": {
+      "samples": 10,
+      "first": 0.11383362286795767,
+      "last": 0.2694367761011506,
+      "base": 0.2700000000000001,
+      "tau": 0.8
+    }
+  },
+  "response_csv": {
+    "path": "2026-11-16-strength-response.csv",
+    "rows": 404,
+    "step_s": 0.02,
+    "duration_s": 2.0,
+    "angle_rad": -0.4,
+    "velocity_rad_s": -0.2,
+    "analytic_error_below": 1e-12
+  },
+  "review": "Independent focused review: no blockers; 52 pure tests independently passed.",
+  "test_migration": "Old non-demo instantaneous assertions were explicitly adapted to static base targets plus startup/ramp checks. Exact demo, STOP, wire-field and settled V1 225 mN*m assertions retained.",
+  "limits": [
+    "Demonstration-only time constants and fictional people, not neural reaction times or human measurements.",
+    "Actual Unity Editor Play through unchanged C# UDP client; test-only Editor commands replace physical Inspector/button clicks.",
+    "Used existing moving sim.mock_stm32, then fixed synthetic TCP telemetry for same-state comparison.",
+    "No new physical STM32, real COM/hardware calibration, PICO or IL2CPP validation."
+  ]
+}

@@ -60,7 +60,10 @@ class CharacterTests(unittest.TestCase):
             state.receive('vr', vr(character=key), 10.)
             state.receive('vr', vr(1, key, 'running'), 10.01)
             command, status = state.outputs(10.02)
-            targets.append(round(command['target_torque_nm'], 6))
+            # V0.1 static targets remain exact; V0.2 starts non-demo output at
+            # zero and tests the actual time response in test_strength_response.
+            targets.append(round(status['base_target_torque_nm'], 6))
+            self.assertEqual(command['target_torque_nm'], status['base_target_torque_nm'] if key == 'demo' else 0.)
             self.assertEqual(status['active_character_id'], key)
             self.assertEqual(set(vr_payload(status)), {'v', 'type', 'seq', 'angle_rad', 'mode', 'reason'})
             self.assertEqual(status['angle_rad'], -.4)
@@ -70,17 +73,22 @@ class CharacterTests(unittest.TestCase):
         state = BridgeState()
         state.receive('stm32', telemetry(), 10.)
         state.receive('vr', vr(0, 'person_01', 'running'), 10.)
-        self.assertAlmostEqual(state.outputs(10.01)[0]['target_torque_nm'], .15)
+        first, first_status = state.outputs(10.01)
+        self.assertEqual(first['target_torque_nm'], 0.)
+        self.assertAlmostEqual(first_status['base_target_torque_nm'], .15)
         state.receive('vr', vr(1, 'person_03', 'running'), 10.02)
         command, status = state.outputs(10.03)
-        self.assertAlmostEqual(command['target_torque_nm'], .15)
+        self.assertAlmostEqual(status['base_target_torque_nm'], .15)
+        self.assertAlmostEqual(command['target_torque_nm'], .15*(1-math.exp(-.02/.15)))
         self.assertEqual(status['character_id'], 'person_03')
         self.assertEqual(status['active_character_id'], 'person_01')
         self.assertTrue(status['character_selection_deferred'])
         state.receive('vr', vr(2, 'person_03', 'paused'), 10.04)
         self.assertEqual(state.outputs(10.05)[0]['target_torque_nm'], 0.)
         state.receive('vr', vr(3, 'person_03', 'running'), 10.06)
-        self.assertAlmostEqual(state.outputs(10.07)[0]['target_torque_nm'], .27)
+        command, status = state.outputs(10.07)
+        self.assertEqual(command['target_torque_nm'], 0.)
+        self.assertAlmostEqual(status['base_target_torque_nm'], .27)
 
     def test_unknown_role_falls_back_visibly_but_cannot_change_locked_round(self):
         self.assertEqual(resolve_character('missing').character_id, 'demo')
@@ -94,7 +102,8 @@ class CharacterTests(unittest.TestCase):
         state.receive('vr', vr(2, 'person_01', 'running'), 10.03)
         state.receive('vr', vr(3, 'missing', 'running'), 10.04)
         command, status = state.outputs(10.05)
-        self.assertAlmostEqual(command['target_torque_nm'], .15)
+        self.assertEqual(command['target_torque_nm'], 0.)
+        self.assertAlmostEqual(status['base_target_torque_nm'], .15)
         self.assertTrue(status['character_fallback'])
         self.assertTrue(status['character_selection_deferred'])
 
@@ -151,7 +160,8 @@ class CharacterTests(unittest.TestCase):
                 state.receive('stm32', telemetry(1), 11.2)
                 state.receive('vr', vr(2, 'person_03', 'running'), 11.2)
                 command, status = state.outputs(11.21)
-                self.assertAlmostEqual(command['target_torque_nm'], .15)
+                self.assertEqual(command['target_torque_nm'], 0.)
+                self.assertAlmostEqual(status['base_target_torque_nm'], .15)
                 self.assertEqual(status['active_character_id'], 'person_01')
 
 

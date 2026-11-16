@@ -1,7 +1,8 @@
 """Latest valid device/VR data; monotonic receipt times decide freshness."""
-from common.control import brake_state
+from common.control import brake_state, passive_torque
 from common.characters import CHARACTERS, resolve_character
 from common.protocol import validate_incoming
+from common.strength_response import StrengthResponse
 
 
 class BridgeState:
@@ -11,16 +12,25 @@ class BridgeState:
         self.received = {'stm32': None, 'vr': None}
         self.seq = 0
         self._character = None  # First valid VR update chooses the initial round.
+        self._strength = StrengthResponse()
 
     def clear(self, role):
         self.latest[role] = None
         self.received[role] = None
+        self._strength.reset()
 
     def receive(self, role, message, now):
         validate_incoming(message, role)
         previous = self.latest[role]
         if previous is not None and message['seq'] <= previous['seq']:
             raise ValueError('seq must increase within a connection')
+        if (any(stamp is not None and now-stamp >= self.timeouts[key]
+                for key, stamp in self.received.items())
+                or (role == 'vr' and message['match_state'] != 'running')
+                or (role == 'stm32' and message['device_status'] != 'ready')):
+            # Reset even when a pause/fault/expired packet is replaced before
+            # outputs() gets its next tick. Rejected packets never reach here.
+            self._strength.reset()
         if role == 'vr' and (self._character is None or message['match_state'] != 'running'):
             # Validate and check seq first. During running, even a changed ID or
             # a new UDP sender cannot silently change this round's parameters.
@@ -51,10 +61,14 @@ class BridgeState:
         character = self._character or CHARACTERS['demo']
         parameters = character.brake_parameters
         requested = vr['character_id'] if fresh['vr'] else None
-        target = actual = 0.0
+        base_target = target = actual = 0.0
         if reason == 'running':
             brake = brake_state(telemetry['angle_rad'], telemetry['velocity_rad_s'], parameters)
-            target, actual = brake.target_torque, brake.applied_torque
+            base_target = brake.target_torque
+            target = self._strength.update(base_target, character.rise_time_constant_s, now)
+            actual = passive_torque(target, telemetry['velocity_rad_s'], parameters.speed_transition)
+        else:
+            self._strength.reset()
         mode = 'enabled' if reason == 'running' else 'stop'
         command = dict(v=1, type='brake_command', seq=self.seq, mode=mode, reason=reason,
                        target_torque_nm=target, brake_torque_nm=actual, valid_for_ms=200,
@@ -65,6 +79,8 @@ class BridgeState:
                       velocity_rad_s=telemetry['velocity_rad_s'] if fresh['stm32'] else None,
                       q_rad=-telemetry['angle_rad'] if fresh['stm32'] else None,
                       target_torque_nm=target, brake_torque_nm=actual,
+                      base_target_torque_nm=base_target,
+                      character_rise_time_constant_s=character.rise_time_constant_s,
                       telemetry_seq=command['telemetry_seq'],
                       telemetry_fresh=fresh['stm32'], vr_fresh=fresh['vr'],
                       telemetry_age_ms=None if ages['stm32'] is None else round(ages['stm32']*1000, 1),

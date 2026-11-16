@@ -4,6 +4,7 @@ No age/sex/training-to-strength formula is used. These values are neither
 population measurements nor hardware-calibrated human safety limits.
 """
 from dataclasses import dataclass
+import math
 from types import MappingProxyType
 
 from common.control import BrakeParameters, brake_state
@@ -18,16 +19,21 @@ class Character:
     training_background: str
     brake_parameters: BrakeParameters
     parameter_source: str = 'demonstration_only'
+    rise_time_constant_s: float = 0.
+
+    def __post_init__(self):
+        if not math.isfinite(self.rise_time_constant_s) or self.rise_time_constant_s < 0:
+            raise ValueError('rise_time_constant_s must be finite and nonnegative')
 
 
 CHARACTERS = MappingProxyType({
     'demo': Character('demo', '原控制基线', None, '未设定', '无人物设定', BrakeParameters()),
     'person_01': Character('person_01', '示例人物甲', 24, '女',
-        '休闲运动，未做专项训练（虚构设定）', BrakeParameters(stiffness=1.0, max_torque=.20)),
+        '休闲运动，未做专项训练（虚构设定）', BrakeParameters(stiffness=1.0, max_torque=.20), rise_time_constant_s=.15),
     'person_02': Character('person_02', '示例人物乙', 38, '男',
-        '规律力量训练（虚构设定）', BrakeParameters(stiffness=1.5, max_torque=.35)),
+        '规律力量训练（虚构设定）', BrakeParameters(stiffness=1.5, max_torque=.35), rise_time_constant_s=.4),
     'person_03': Character('person_03', '示例人物丙', 52, '女',
-        '有力量训练经历（虚构设定）', BrakeParameters(stiffness=1.8, max_torque=.50)),
+        '有力量训练经历（虚构设定）', BrakeParameters(stiffness=1.8, max_torque=.50), rise_time_constant_s=.8),
 })
 
 
@@ -38,7 +44,7 @@ def resolve_character(character_id: str) -> Character:
 
 def main():
     print('DEMONSTRATION VALUES ONLY - not human measurements or safety calibration.')
-    print('Target brake magnitude (N*m); common boundary=-0.25 rad, velocity=-0.2 rad/s')
+    print('Static base target M_base (N*m); boundary=-0.25 rad, velocity=-0.2 rad/s')
     print(f"{'angle_rad':>10}" + ''.join(f'{key:>12}' for key in CHARACTERS))
     for angle in (0., -.20, -.25, -.40, -.55):
         values = [brake_state(angle, -.2, person.brake_parameters).target_torque

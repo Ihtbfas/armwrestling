@@ -27,6 +27,8 @@
 
 即使 VR 消息附带旧版 `stiffness_nm_per_rad` 和 `max_torque_nm`，也不会改变 PC 的人物参数；不必发送它们。请求/生效人物和回退提示只记录在 PC 本地日志，下面的 UDP status 字段不增加。
 
+[角色库 V0.2](character-library-v02.md) 在 PC 内部增加非 demo 的阻力建立时间常数；tau 和建立后幅值不加入 VR 报文，原有 character_id 与比赛状态接口继续使用。
+
 ## PC → VR：status
 
 | 字段 | 类型 | 含义 |

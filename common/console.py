@@ -109,7 +109,11 @@ def operator_lines(role, message, info=None, events=()):
         lines.extend([f"模拟人施力：{number(message.get('user_torque_nm'), 3)} N·m",
                       f"模拟制动力矩：{number(message.get('applied_torque_nm'), 3)} N·m"])
     else:
-        lines.append(f"计算目标阻力：{number(message.get('target_torque_nm'), 3)} N·m（计算值）")
+        if 'base_target_torque_nm' in message:
+            lines.append(f"当前下发阻力：{number(message.get('target_torque_nm'), 3)} N·m（建立后计算值）")
+            lines.append(f"静态目标：{number(message['base_target_torque_nm'], 3)} N·m | 建立常数：{number(message.get('character_rise_time_constant_s'))} s")
+        else:
+            lines.append(f"计算目标阻力：{number(message.get('target_torque_nm'), 3)} N·m（计算值）")
         if 'serial_applied_target_nm' in message:
             lines.append(f"下位机回报目标：{number(message['serial_applied_target_nm'], 3)} N·m（非实测力矩）")
     lines.extend(['', '最近事件：'] + list(events)[-3:])
