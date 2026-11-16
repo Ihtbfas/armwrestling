@@ -64,7 +64,7 @@ python -m sim.mock_stm32
 
 `ArmWrestlingUdpDemo.cs` 仅是可替换的 OnGUI 和摆臂映射：`LateUpdate` 使用有效 `angle_rad * Mathf.Rad2Deg` 更新 Pivot；无效或通信过期时保持姿态。OnDisable、OnDestroy、退出程序均关闭 socket；实际 Stop/Play 和脚本域重载均已测试。暂停/stop 本身不会清除仍然有效的机械角度。
 
-如果 VR 同学选择复用该示例，可把网络脚本挂在随会话启停的对象上，用 VR UI 调用 `SetMatchState`，以有效角度驱动自己的骨骼或转轴，替换 Demo 即可。`characterId` 应保持 1–64 字符；角色编号目前只记录，不切换 PC 控制策略。不发送角速度、刚度、最大力矩等字段。`enabled` 只表示 PC 正在正常计算策略。
+如果 VR 同学选择复用该示例，可把网络脚本挂在随会话启停的对象上，用 VR UI 调用 `SetMatchState`，以有效角度驱动自己的骨骼或转轴，替换 Demo 即可。`characterId` 应保持 1–64 字符；角色库 V0.1 已支持通过它选择 PC 本地人物参数，确认和 running 锁定规则见 [角色库说明](character-library-v01.md)。不发送角速度、刚度、最大力矩等字段。`enabled` 只表示 PC 正在正常计算策略。
 
 本次只验证上面的 Windows 编辑器版本。其他 Unity/团结版本、PICO/Android、IL2CPP/AOT 或程序集裁剪尚未验证；使用反射的 .NET JSON 数据契约在新构建目标上应重新做运行验证，不能据此宣称头显构建已兼容。将来改用真实 STM32 的 `real.run --port COMx` 时，VR UDP 接口保持不变；本次未进行串口 V1 或实物验证。
 

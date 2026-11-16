@@ -25,6 +25,7 @@ flowchart LR
 armwrestling/
 ├── common/
 │   ├── control.py          公共阻力算法
+│   ├── characters.py       demo 基线和三个示例人物的资料、演示参数
 │   ├── state.py            比赛状态、数据有效性和超时处理
 │   ├── serial_protocol.py  STM32 V1 二进制帧编解码
 │   ├── protocol.py         UDP JSON 与旧 TCP JSON 校验
@@ -128,11 +129,25 @@ PC → Unity：
 
 两端 `seq` 各自从 0 起递增，重复、乱序消息忽略；新会话允许重新计数。PC 状态的目标发送周期是 20 ms，实际频率受系统调度影响，客户端不要依赖每个包都到达。
 
-角度单位是 rad，0 为机械零位，获胜侧下压为负。`angle_rad=null` 表示没有有效角度，客户端应保留最后姿态并提示数据无效。`mode=stop` 时仍可能有有效角度，可以继续更新模型。角色编号目前用于记录，不自动切换阻力策略；VR 消息不传角速度、刚度或力矩上限。
+角度单位是 rad，0 为机械零位，获胜侧下压为负。`angle_rad=null` 表示没有有效角度，客户端应保留最后姿态并提示数据无效。`mode=stop` 时仍可能有有效角度，可以继续更新模型。角色库 V0.1 根据 `character_id` 选择 PC 本地保存的演示参数；VR 消息不传角速度、刚度或力矩上限。
 
 `enabled` 表示 PC 正在正常计算，实物的本地使能和急停保护仍由下位机处理。
 
 交接时双方按 [UDP V0.1 完整约定](docs/vr-udp-v01.md) 对照字段、超时和源端口规则。PC 只接受一个有效 VR 发送端，超过 1 秒没有有效心跳后停止正常控制并释放该来源。重进 Play 后可等待约 1 秒再确认连接。
+
+## 角色库 V0.1
+
+`demo` 保留原控制输出；`person_01`、`person_02`、`person_03` 是按年龄、性别和训练背景描述的三个虚构人物。基础阻力参数是手工指定的演示值，不能用于推断真实人群力量。人物资料、参数表和确认规则见 [角色库说明](docs/character-library-v01.md)。
+
+PC 首次收到有效 VR 状态时确定初始人物。此后 running 中保持原人物，只有 waiting、paused、finished 消息才确认新选择；未知 ID 按 demo 处理，PC 面板会显示请求编号、生效人物及待确认/回退提示。UDP 字段保持原样。
+
+已有 PC 和模拟下位机运行时，可用下面的 Python 客户端验证选角；不要与 Unity 同时启动：
+
+```powershell
+.\.venv\Scripts\python.exe -m sim.mock_vr --character-id person_02 --demo-states
+```
+
+`python -m common.characters` 可打印相同角度下的目标阻力对照。新人物只调整基础参数，发力策略库还未展开。
 
 ## 再验证 STM32 V1：Windows 虚拟串口路线
 

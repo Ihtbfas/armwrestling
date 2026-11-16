@@ -12,11 +12,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=9102)
+    parser.add_argument('--character-id', default='demo', help='person ID from common.characters; unknown IDs use demo')
     parser.add_argument('--match-state', choices=['waiting', 'running', 'paused', 'finished'], default='running')
     parser.add_argument('--demo-states', action='store_true', help='alternate running 3 s / paused 1 s')
     parser.add_argument('--duration', type=positive)
     args = parser.parse_args()
-    message = dict(v=1, type='vr_update', seq=0, character_id='demo',
+    message = dict(v=1, type='vr_update', seq=0, character_id=args.character_id,
                    match_state=args.match_state)
     try:
         validate_incoming(message, 'vr')

@@ -1,0 +1,154 @@
+{
+  "date": "2026-11-16",
+  "platform": "Windows",
+  "python": "3.11.5",
+  "base_commit": "ee767fa98c4945c5f3619155418a0bbcab8bd107",
+  "result": "PASS",
+  "python_tests": {
+    "run": 57,
+    "passed": 56,
+    "skipped": 1,
+    "skip_reason": "Linux PTY-specific test on Windows"
+  },
+  "fixed_telemetry_comparison": [
+    {
+      "character_id": "demo",
+      "angle_rad": -0.4,
+      "velocity_rad_s": -0.2,
+      "target_torque_nm": 0.30000000000000004
+    },
+    {
+      "character_id": "person_01",
+      "angle_rad": -0.4,
+      "velocity_rad_s": -0.2,
+      "target_torque_nm": 0.15000000000000002
+    },
+    {
+      "character_id": "person_02",
+      "angle_rad": -0.4,
+      "velocity_rad_s": -0.2,
+      "target_torque_nm": 0.22500000000000003
+    },
+    {
+      "character_id": "person_03",
+      "angle_rad": -0.4,
+      "velocity_rad_s": -0.2,
+      "target_torque_nm": 0.2700000000000001
+    }
+  ],
+  "smoke": {
+    "chain": "common.bridge + sim.mock_stm32 + sim.mock_vr --character-id person_02 --demo-states",
+    "process_exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "stm_tcp": "127.0.0.1:9101",
+    "vr_udp": "127.0.0.1:9102",
+    "running": {
+      "v": 1,
+      "type": "status",
+      "seq": 32,
+      "mode": "enabled",
+      "reason": "running",
+      "angle_rad": -0.3281232483188604,
+      "velocity_rad_s": -1.1328345734480174,
+      "q_rad": 0.3281232483188604,
+      "target_torque_nm": 0.11718487247829062,
+      "brake_torque_nm": 0.11718487247829062,
+      "telemetry_seq": 25,
+      "telemetry_fresh": true,
+      "vr_fresh": true,
+      "telemetry_age_ms": 0.0,
+      "vr_age_ms": 187.0,
+      "match_state": "running",
+      "character_id": "person_02",
+      "active_character_id": "person_02",
+      "active_character_name": "示例人物乙",
+      "character_fallback": false,
+      "character_selection_deferred": false,
+      "character_stiffness_nm_per_rad": 1.5,
+      "character_max_torque_nm": 0.35,
+      "elapsed_s": 1.0
+    },
+    "paused": {
+      "v": 1,
+      "type": "status",
+      "seq": 112,
+      "mode": "stop",
+      "reason": "match_paused",
+      "angle_rad": -0.5196461264346227,
+      "velocity_rad_s": 0.3844293957236324,
+      "q_rad": 0.5196461264346227,
+      "target_torque_nm": 0.0,
+      "brake_torque_nm": 0.0,
+      "telemetry_seq": 105,
+      "telemetry_fresh": true,
+      "vr_fresh": true,
+      "telemetry_age_ms": 0.0,
+      "vr_age_ms": 46.0,
+      "match_state": "paused",
+      "character_id": "person_02",
+      "active_character_id": "person_02",
+      "active_character_name": "示例人物乙",
+      "character_fallback": false,
+      "character_selection_deferred": false,
+      "character_stiffness_nm_per_rad": 1.5,
+      "character_max_torque_nm": 0.35,
+      "elapsed_s": 3.5
+    },
+    "vr_timeout": {
+      "v": 1,
+      "type": "status",
+      "seq": 176,
+      "mode": "stop",
+      "reason": "vr_timeout",
+      "angle_rad": 0.6,
+      "velocity_rad_s": 0.0,
+      "q_rad": -0.6,
+      "target_torque_nm": 0.0,
+      "brake_torque_nm": 0.0,
+      "telemetry_seq": 169,
+      "telemetry_fresh": true,
+      "vr_fresh": false,
+      "telemetry_age_ms": 0.0,
+      "vr_age_ms": 1234.0,
+      "match_state": null,
+      "character_id": null,
+      "active_character_id": "person_02",
+      "active_character_name": "示例人物乙",
+      "character_fallback": false,
+      "character_selection_deferred": false,
+      "character_stiffness_nm_per_rad": 1.5,
+      "character_max_torque_nm": 0.35,
+      "elapsed_s": 5.5
+    },
+    "simulated_braking": {
+      "type": "stm32_snapshot",
+      "elapsed_s": 1.015,
+      "angle_rad": -0.47381732270781385,
+      "velocity_rad_s": -0.8694423496391969,
+      "user_torque_nm": -0.15,
+      "applied_torque_nm": 0.30868255790710497,
+      "brake_power_w": -0.27056855620213477,
+      "maximum_brake_power_w": 0.0,
+      "reason": "running",
+      "command_seq": 38
+    },
+    "vr_wire_fields": [
+      "angle_rad",
+      "mode",
+      "reason",
+      "seq",
+      "type",
+      "v"
+    ]
+  },
+  "review": "Independent focused review found no actionable blockers; independently ran 19 pure tests.",
+  "limits": [
+    "All person profiles and parameters are demonstration-only, not human measurements.",
+    "Selection tested with real Windows Python TCP/UDP; no new Unity role-selection run.",
+    "V1 adapter role target checked using in-memory bytes; no new hardware COM or physical STM32 run."
+  ],
+  "observation_note": "The initial report extractor matched a timeout event as if it were a status snapshot. Assertions were corrected to select type=status; the running processes and product code required no fix."
+}

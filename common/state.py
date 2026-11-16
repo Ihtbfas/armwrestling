@@ -1,5 +1,6 @@
 """Latest valid device/VR data; monotonic receipt times decide freshness."""
-from common.control import BrakeParameters, brake_state
+from common.control import brake_state
+from common.characters import CHARACTERS, resolve_character
 from common.protocol import validate_incoming
 
 
@@ -9,6 +10,7 @@ class BridgeState:
         self.latest = {'stm32': None, 'vr': None}
         self.received = {'stm32': None, 'vr': None}
         self.seq = 0
+        self._character = None  # First valid VR update chooses the initial round.
 
     def clear(self, role):
         self.latest[role] = None
@@ -19,6 +21,10 @@ class BridgeState:
         previous = self.latest[role]
         if previous is not None and message['seq'] <= previous['seq']:
             raise ValueError('seq must increase within a connection')
+        if role == 'vr' and (self._character is None or message['match_state'] != 'running'):
+            # Validate and check seq first. During running, even a changed ID or
+            # a new UDP sender cannot silently change this round's parameters.
+            self._character = resolve_character(message['character_id'])
         self.latest[role] = dict(message)
         self.received[role] = now
 
@@ -42,7 +48,9 @@ class BridgeState:
             reason = 'match_'+vr['match_state']
         else:
             reason = 'running'
-        parameters = BrakeParameters()
+        character = self._character or CHARACTERS['demo']
+        parameters = character.brake_parameters
+        requested = vr['character_id'] if fresh['vr'] else None
         target = actual = 0.0
         if reason == 'running':
             brake = brake_state(telemetry['angle_rad'], telemetry['velocity_rad_s'], parameters)
@@ -62,7 +70,14 @@ class BridgeState:
                       telemetry_age_ms=None if ages['stm32'] is None else round(ages['stm32']*1000, 1),
                       vr_age_ms=None if ages['vr'] is None else round(ages['vr']*1000, 1),
                       match_state=vr['match_state'] if fresh['vr'] else None,
-                      character_id=vr['character_id'] if fresh['vr'] else None)
+                      character_id=requested,
+                      active_character_id=character.character_id,
+                      active_character_name=character.name,
+                      character_fallback=requested is not None and requested not in CHARACTERS,
+                      character_selection_deferred=(requested is not None and
+                          resolve_character(requested).character_id != character.character_id),
+                      character_stiffness_nm_per_rad=parameters.stiffness,
+                      character_max_torque_nm=parameters.max_torque)
         self.seq += 1
         return command, status
 

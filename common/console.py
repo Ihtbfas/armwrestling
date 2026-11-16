@@ -87,6 +87,14 @@ def operator_lines(role, message, info=None, events=()):
                 + ' | 角色：' + safe(message.get('character_id') or '--'),
             '阻力控制：' + ('计算运行中' if message.get('mode') == 'enabled' else '已停止'),
         ])
+        if 'active_character_id' in message:
+            lines.append('生效人物：' + safe(message['active_character_id']) + ' / '
+                         + safe(message.get('active_character_name', '')))
+            if message.get('character_fallback'):
+                lines.append('人物提示：未知编号按 demo 处理' +
+                    ('，本回合保持原人物' if message.get('character_selection_deferred') else '，已使用 demo 基线'))
+            elif message.get('character_selection_deferred'):
+                lines.append('人物提示：本回合保持原人物；请在 waiting/paused/finished 确认新人物')
         if 'serial_session_ready' in message:
             lines.append('V1 会话：' + ('已确认' if message['serial_session_ready'] else '等待确认')
                          + ' | 本地使能许可：' + ('已获得' if message.get('serial_arm_ready') else '未获得'))

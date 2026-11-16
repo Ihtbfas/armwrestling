@@ -23,7 +23,9 @@
 {"v":1,"type":"vr_update","seq":1,"character_id":"opponent_01","match_state":"running"}
 ```
 
-上位机使用已有固定阻力控制参数。即使 VR 消息附带旧版 `stiffness_nm_per_rad` 和 `max_torque_nm`，也**不会**改变 PC 控制计算；不必发送它们。现阶段 `character_id` 用于记录角色选择，不自动切换控制策略。
+上位机根据 `character_id` 从 PC 本地[角色库 V0.1](character-library-v01.md)选择演示基础阻力参数，`demo` 保留原基线。首次有效消息可确定初始人物；此后只在 waiting、paused、finished 时确认新人物，running 中保持已选参数，未知 ID 按 demo 回退并遵守同样的锁定规则。人物属性和参数暂为虚构演示值，不是人体测量数据；发力策略库暂未展开。
+
+即使 VR 消息附带旧版 `stiffness_nm_per_rad` 和 `max_torque_nm`，也不会改变 PC 的人物参数；不必发送它们。请求/生效人物和回退提示只记录在 PC 本地日志，下面的 UDP status 字段不增加。
 
 ## PC → VR：status
 

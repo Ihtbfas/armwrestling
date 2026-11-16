@@ -38,6 +38,27 @@ class MemorySerial:
 
 
 class SerialLinkTests(unittest.TestCase):
+    def test_character_target_reaches_unchanged_v1_frame_and_pause_is_zero(self):
+        from common.state import BridgeState
+        fake = MemorySerial()
+        link = Stm32Link(fake, now=0., session_id=123)
+        link.poll(0.)
+        fake.sent_frame()
+        fake.incoming.extend(session_ack_frame(0, 123))
+        fake.incoming.extend(telemetry_frame(0, -400, -200, 0, FLAG_READY | FLAG_ARM_READY))
+        state = BridgeState()
+        state.receive('stm32', link.poll(.01)[0], .01)
+        update = dict(v=1, type='vr_update', seq=0, character_id='person_02', match_state='waiting')
+        state.receive('vr', update, .01)
+        state.receive('vr', dict(update, seq=1, match_state='running'), .02)
+        link.send_command(state.outputs(.03)[0], .03)
+        command = decode_payload(fake.sent_frame())
+        self.assertEqual((command.mode, command.target_torque_mnm), (MODE_ENABLE, 225))
+        state.receive('vr', dict(update, seq=2, match_state='paused'), .04)
+        link.send_command(state.outputs(.05)[0], .05)
+        command = decode_payload(fake.sent_frame())
+        self.assertEqual((command.mode, command.target_torque_mnm), (MODE_STOP, 0))
+
     def test_session_telemetry_and_real_v1_command(self):
         fake = MemorySerial()
         link = Stm32Link(fake, now=10., session_id=123)
