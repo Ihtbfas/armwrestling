@@ -7,6 +7,15 @@ from common.console import ConsoleReporter, operator_lines
 
 
 class ConsoleTests(unittest.TestCase):
+    def test_fatigue_and_capacity_are_explicitly_model_values(self):
+        text = '\n'.join(operator_lines('PC', dict(type='status', reason='match_paused',
+            mode='stop', target_torque_nm=0., base_target_torque_nm=0.,
+            eligible_target_torque_nm=0., fatigue_level=.25, fatigue_capacity=.9)))
+        self.assertIn('等效疲劳：0.250', text)
+        self.assertIn('剩余能力系数：0.900', text)
+        self.assertIn('疲劳后目标：0.000', text)
+        self.assertIn('模型演示值', text)
+
     def test_established_output_and_static_target_have_separate_labels(self):
         text = '\n'.join(operator_lines('PC', dict(type='status', reason='running',
             mode='enabled', target_torque_nm=.1, base_target_torque_nm=.225,

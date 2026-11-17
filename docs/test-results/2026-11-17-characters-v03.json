@@ -1,0 +1,156 @@
+{
+  "date": "2026-11-17",
+  "base_commit": "ec51f17f1040ee57f193a0146a81fab5c215000a",
+  "python": "3.11.5",
+  "platform": "Windows-10-10.0.26100-SP0",
+  "result": "PASS_WITH_UNRELATED_MUJOCO_LIMITATION",
+  "python_related": {
+    "command": "python -m unittest common.test_fatigue common.test_strength_response common.test_characters common.test_bridge common.test_console common.test_serial_protocol real.test_stm32_link sim.test_serial_device sim.test_bridge_clients sim.test_bridge_integration sim.test_vr_udp sim.test_character_integration sim.test_virtual_serial sim.test_control.BrakeLawTests -q",
+    "run": 84,
+    "passed": 83,
+    "skipped": 1,
+    "skip_reason": "PTY simulation requires Linux/Unix"
+  },
+  "full_discovery": {
+    "command": "python -m unittest discover -q",
+    "run": 92,
+    "passed": 83,
+    "errors": 8,
+    "skipped": 1,
+    "limitation": "Existing MuJoCo 3.17.0 DLL initialization fails with WinError 1114 in this Windows/Anaconda venv after installing requirements.txt; no MuJoCo code changed.",
+    "affected": [
+      "sim.test_control.MujocoDynamicsTests.test_brake_power_stays_nonpositive_during_reversal",
+      "sim.test_control.MujocoDynamicsTests.test_user_torque_moves_joint_continuously_and_brake_opposes_it",
+      "sim.test_direction (import)",
+      "sim.test_fit_analysis (import)",
+      "sim.test_horizontal_grip (import)",
+      "sim.test_mechanics (import)",
+      "sim.test_operator_layout (import)",
+      "sim.test_visualization (import)"
+    ]
+  },
+  "unity": {
+    "version": "2022.3.62f3c1",
+    "result": "PASS",
+    "checks": 33,
+    "editor_snapshots": 118,
+    "fixed_tcp_commands": 224,
+    "check_names": [
+      "real Editor Play + moving mock STM32",
+      "Unity requests person_02; PC uses person_02",
+      "Unity state running",
+      "Unity requests person_03; PC uses person_02",
+      "running request is deferred",
+      "Unity state paused",
+      "pause confirms person_03 with zero output",
+      "Unity state running",
+      "Unity state waiting",
+      "Unity requests demo; PC uses demo",
+      "Unity state running",
+      "moving device stopped -> null/STOP",
+      "fixed test telemetry: -0.4 rad / -0.2 rad/s",
+      "Unity state waiting",
+      "Unity requests person_01; PC uses person_01",
+      "Unity state running",
+      "fixed-state person_01 base 0.150 N*m; bounded dynamic output",
+      "Unity state waiting",
+      "Unity requests person_02; PC uses person_02",
+      "Unity state running",
+      "fixed-state person_02 base 0.225 N*m; bounded dynamic output",
+      "Unity state waiting",
+      "Unity requests person_03; PC uses person_03",
+      "Unity state running",
+      "fixed-state person_03 base 0.270 N*m; bounded dynamic output",
+      "Unity state waiting",
+      "Unity requests demo; PC uses demo",
+      "Unity state running",
+      "fixed-state demo base 0.300 N*m; bounded dynamic output",
+      "Unity state paused",
+      "Unity pause stops output",
+      "actual Unity wire fields unchanged",
+      "clean Editor compile, protocol checks and exit"
+    ],
+    "same_state": [
+      {
+        "active_character_id": "person_01",
+        "base_target_torque_nm": 0.15000000000000002,
+        "eligible_target_torque_nm": 0.1486504019085729,
+        "target_torque_nm": 0.13905258559104014,
+        "fatigue_level": 0.017994641219028495,
+        "fatigue_capacity": 0.9910026793904858
+      },
+      {
+        "active_character_id": "person_02",
+        "base_target_torque_nm": 0.22500000000000003,
+        "eligible_target_torque_nm": 0.22395602251187416,
+        "target_torque_nm": 0.14304470588679413,
+        "fatigue_level": 0.010310888771613697,
+        "fatigue_capacity": 0.9953601000527739
+      },
+      {
+        "active_character_id": "person_03",
+        "base_target_torque_nm": 0.2700000000000001,
+        "eligible_target_torque_nm": 0.26929725039860675,
+        "target_torque_nm": 0.10729755020731727,
+        "fatigue_level": 0.0065069407536417516,
+        "fatigue_capacity": 0.9973972236985433
+      },
+      {
+        "active_character_id": "demo",
+        "base_target_torque_nm": 0.30000000000000004,
+        "eligible_target_torque_nm": 0.30000000000000004,
+        "target_torque_nm": 0.30000000000000004,
+        "fatigue_level": 0.0,
+        "fatigue_capacity": 1.0
+      }
+    ],
+    "scope": "Actual existing Unity Editor scene entered Play; existing C# UDP client, moving mock STM32 then fixed TCP telemetry. Python orchestrates, not a Python VR client. No production VR or C# changes.",
+    "raw_artifacts": "Sibling UnityUdpDemo/TestResultsCharactersV03"
+  },
+  "serial_wire": {
+    "result": "PASS",
+    "pc_port": "COM1",
+    "stm_port": "COM2",
+    "checks": [
+      {
+        "check": "actual COM V1 session request/ACK + CRC-checked decode",
+        "result": "PASS"
+      },
+      {
+        "check": "actual COM brake command/telemetry and sequence 65535 -> 0",
+        "result": "PASS"
+      },
+      {
+        "check": "bad CRC, wrong session and duplicate command do not replace target",
+        "result": "PASS"
+      },
+      {
+        "check": "200 ms command watchdog removes ARM_READY and clears target",
+        "result": "PASS"
+      },
+      {
+        "check": "ENABLE cannot restore authorization after watchdog",
+        "result": "PASS"
+      },
+      {
+        "check": "new demo-authorized session does not inherit old brake target",
+        "result": "PASS"
+      }
+    ]
+  },
+  "time_series": {
+    "file": "docs/test-results/2026-11-17-fatigue-response.csv",
+    "rows": 1204,
+    "duration_s": 30,
+    "step_s": 0.1,
+    "sha256": "fdb4a306254286f56b85707b5c9dcd4a4a653ef52891251857f9c8dc819ecdb1",
+    "scope": "Deterministic shared PC BridgeState model; V0.2 reference uses unchanged StrengthResponse without fatigue; not a hardware/human measurement.",
+    "hash_normalization": "UTF-8 with LF newlines (Git text normalization)"
+  },
+  "not_tested": [
+    "Physical STM32",
+    "PICO/production VR scene",
+    "Real brake or human force measurements"
+  ],
+  "review": "Focused independent read-only review: no reproducible Critical/Important issue found."
+}

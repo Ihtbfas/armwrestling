@@ -15,20 +15,25 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class CharacterProcessTests(unittest.TestCase):
     def test_role_selection_freeze_fallback_and_wire_compatibility(self):
-        output_log = tempfile.TemporaryFile(mode='w+t', encoding='utf-8')
+        log_path = Path(self.enterContext(tempfile.TemporaryDirectory())) / 'pc.jsonl'
+        output_log = self.enterContext(log_path.open('w', encoding='utf-8'))
+
+        def records():
+            # Independent reader: never seek the child's shared stdout handle.
+            return [json.loads(line) for line in log_path.read_text(encoding='utf-8').splitlines(keepends=True)
+                    if line.endswith('\n')]
         pc = subprocess.Popen([sys.executable, '-u', '-m', 'common.bridge',
             '--stm-port', '0', '--vr-port', '0', '--duration', '40'], cwd=ROOT,
             stdout=output_log, stderr=subprocess.PIPE, text=True)
         remaining = ''
         try:
             deadline = time.monotonic()+5
-            first_line = ''
-            while not first_line.endswith('\n') and time.monotonic() < deadline:
-                output_log.seek(0)
-                first_line = output_log.readline()
-                if not first_line.endswith('\n'):
-                    time.sleep(.02)
-            ready = json.loads(first_line)
+            startup = records()
+            while not startup and time.monotonic() < deadline:
+                time.sleep(.02)
+                startup = records()
+            self.assertTrue(startup, 'PC did not report its bound ports')
+            ready = startup[0]
             with socket.create_connection(('127.0.0.1', ready['stm_port']), timeout=1) as stm, \
                  socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as vr:
                 stm.settimeout(.025)
@@ -38,10 +43,10 @@ class CharacterProcessTests(unittest.TestCase):
                 telemetry_seq = update_seq = 0
                 last_status_seq = -1
 
-                def phase(character, match, target, reason, device_status='ready', hold=.09):
+                def phase(character, match, target, reason, device_status='ready', hold=.09, active=None):
                     nonlocal telemetry_seq, update_seq, last_status_seq
                     start = next_update = time.monotonic()
-                    saw_command = saw_status = False
+                    saw_command = saw_status = saw_local = False
                     while time.monotonic() - start < 8.:
                         now = time.monotonic()
                         stm.sendall(encode(dict(v=1, type='telemetry', seq=telemetry_seq,
@@ -56,9 +61,11 @@ class CharacterProcessTests(unittest.TestCase):
                             next_update = now + .2
                         try:
                             for command in lines.feed(stm.recv(4096)):
-                                # Static expected values are retained; allow .001 N*m
-                                # settling error for finite-time V0.2 exponential rise.
-                                if command['reason'] == reason and abs(command['target_torque_nm'] - target) < .001:
+                                # V0.3 output need not reach the static target;
+                                # fatigue limits it. The base is checked locally.
+                                magnitude = command['target_torque_nm']
+                                bounded = 0 < magnitude <= target+1e-12 if reason == 'running' else magnitude == 0.
+                                if command['reason'] == reason and bounded:
                                     self.assertAlmostEqual(command['brake_torque_nm'], command['target_torque_nm'])
                                     self.assertEqual(command['mode'], 'enabled' if reason == 'running' else 'stop')
                                     saw_command = True
@@ -75,7 +82,14 @@ class CharacterProcessTests(unittest.TestCase):
                             if status['reason'] == reason:
                                 self.assertEqual(status['angle_rad'], -.4)
                                 saw_status = True
-                        if saw_command and saw_status and time.monotonic() - start >= hold:
+                        statuses = [row for row in records() if row.get('type') == 'status']
+                        if statuses:
+                            local = statuses[-1]
+                            if local['reason'] == reason and local['active_character_id'] == (active or character):
+                                self.assertAlmostEqual(local['base_target_torque_nm'], target)
+                                self.assertTrue(0 <= local['target_torque_nm'] <= local['eligible_target_torque_nm'] <= target+1e-12)
+                                saw_local = True
+                        if saw_command and saw_status and saw_local and time.monotonic() - start >= hold:
                             return
                     self.fail(f'role phase failed: {character}/{match}/{reason}/{target}')
 
@@ -84,19 +98,17 @@ class CharacterProcessTests(unittest.TestCase):
                     phase(character, 'running', target, 'running')
                 phase('person_01', 'paused', 0., 'match_paused')
                 phase('person_01', 'running', .15, 'running')
-                phase('person_03', 'running', .15, 'running') # Locked to person_01.
-                phase('person_03', 'running', 0., 'device_fault', device_status='fault')
-                phase('person_03', 'running', .15, 'running') # Recovery is not role confirmation.
+                phase('person_03', 'running', .15, 'running', active='person_01') # Locked.
+                phase('person_03', 'running', 0., 'device_fault', device_status='fault', active='person_01')
+                phase('person_03', 'running', .15, 'running', active='person_01') # Recovery is not confirmation.
                 phase('person_03', 'finished', 0., 'match_finished')
                 phase('person_03', 'running', .27, 'running')
-                phase('unknown_person', 'waiting', 0., 'match_waiting', hold=.65)
-                phase('unknown_person', 'running', .3, 'running')
+                phase('unknown_person', 'waiting', 0., 'match_waiting', hold=.65, active='demo')
+                phase('unknown_person', 'running', .3, 'running', active='demo')
         finally:
             pc.terminate()
             _, errors = pc.communicate(timeout=3)
-            output_log.seek(0)
-            remaining = output_log.read()
-            output_log.close()
+            remaining = log_path.read_text(encoding='utf-8')
         self.assertEqual(errors, '')
         logs = [json.loads(line) for line in remaining.splitlines()]
         self.assertTrue(any(row.get('character_fallback') and row.get('active_character_id') == 'demo'

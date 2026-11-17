@@ -3,6 +3,7 @@ from common.control import brake_state, passive_torque
 from common.characters import CHARACTERS, resolve_character
 from common.protocol import validate_incoming
 from common.strength_response import StrengthResponse
+from common.fatigue import FatigueState
 
 
 class BridgeState:
@@ -13,28 +14,41 @@ class BridgeState:
         self.seq = 0
         self._character = None  # First valid VR update chooses the initial round.
         self._strength = StrengthResponse()
+        self._fatigue = FatigueState()
 
     def clear(self, role):
         self.latest[role] = None
         self.received[role] = None
         self._strength.reset()
+        self._fatigue.freeze()
 
     def receive(self, role, message, now):
         validate_incoming(message, role)
         previous = self.latest[role]
         if previous is not None and message['seq'] <= previous['seq']:
             raise ValueError('seq must increase within a connection')
-        if (any(stamp is not None and now-stamp >= self.timeouts[key]
-                for key, stamp in self.received.items())
+        expired = any(stamp is not None and now-stamp >= self.timeouts[key]
+                      for key, stamp in self.received.items())
+        if (expired
                 or (role == 'vr' and message['match_state'] != 'running')
                 or (role == 'stm32' and message['device_status'] != 'ready')):
             # Reset even when a pause/fault/expired packet is replaced before
             # outputs() gets its next tick. Rejected packets never reach here.
             self._strength.reset()
+        if (expired or (role == 'stm32' and message['device_status'] != 'ready')
+                or (role == 'vr' and (previous is None or
+                    previous['match_state'] != message['match_state']))):
+            # Do not integrate across a state transition or stale input. Repeated
+            # paused heartbeats keep their clock so valid rest can recover.
+            self._fatigue.freeze()
         if role == 'vr' and (self._character is None or message['match_state'] != 'running'):
             # Validate and check seq first. During running, even a changed ID or
             # a new UDP sender cannot silently change this round's parameters.
-            self._character = resolve_character(message['character_id'])
+            selected = resolve_character(message['character_id'])
+            if (self._character is None or selected.character_id != self._character.character_id
+                    or message['match_state'] == 'waiting'):
+                self._fatigue.reset()
+            self._character = selected
         self.latest[role] = dict(message)
         self.received[role] = now
 
@@ -61,14 +75,28 @@ class BridgeState:
         character = self._character or CHARACTERS['demo']
         parameters = character.brake_parameters
         requested = vr['character_id'] if fresh['vr'] else None
-        base_target = target = actual = 0.0
+        base_target = eligible = target = actual = load_proxy = 0.0
+        fatigue_parameters = character.fatigue_parameters
         if reason == 'running':
             brake = brake_state(telemetry['angle_rad'], telemetry['velocity_rad_s'], parameters)
             base_target = brake.target_torque
-            target = self._strength.update(base_target, character.rise_time_constant_s, now)
+            # Equivalent load only, not measured muscle activation/user force.
+            load_proxy = min(1., max(0., base_target/max(parameters.max_torque, 1e-9)))
+            self._fatigue.update(load_proxy, fatigue_parameters, now)
+            capacity = 1-fatigue_parameters.fatigue_loss_fraction*self._fatigue.value
+            eligible = base_target*capacity
+            target = self._strength.update(eligible, character.rise_time_constant_s, now)
             actual = passive_torque(target, telemetry['velocity_rad_s'], parameters.speed_transition)
         else:
             self._strength.reset()
+            if reason == 'match_paused':
+                self._fatigue.update(0., fatigue_parameters, now)
+            elif reason == 'match_waiting':
+                self._fatigue.reset()
+            else:
+                # Finished retains the round; faults have unknown mechanical load.
+                self._fatigue.freeze()
+        capacity = 1-fatigue_parameters.fatigue_loss_fraction*self._fatigue.value
         mode = 'enabled' if reason == 'running' else 'stop'
         command = dict(v=1, type='brake_command', seq=self.seq, mode=mode, reason=reason,
                        target_torque_nm=target, brake_torque_nm=actual, valid_for_ms=200,
@@ -80,6 +108,9 @@ class BridgeState:
                       q_rad=-telemetry['angle_rad'] if fresh['stm32'] else None,
                       target_torque_nm=target, brake_torque_nm=actual,
                       base_target_torque_nm=base_target,
+                      eligible_target_torque_nm=eligible,
+                      fatigue_level=self._fatigue.value, fatigue_capacity=capacity,
+                      fatigue_load_proxy=load_proxy,
                       character_rise_time_constant_s=character.rise_time_constant_s,
                       telemetry_seq=command['telemetry_seq'],
                       telemetry_fresh=fresh['stm32'], vr_fresh=fresh['vr'],

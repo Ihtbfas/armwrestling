@@ -84,7 +84,10 @@ class StrengthResponseTests(unittest.TestCase):
                 self.assertEqual(state.outputs(now)[0]['target_torque_nm'], 0.)
                 state.receive('stm32', device(21), now+.02)
                 state.receive('vr', update(21), now+.02)
-                self.assertAlmostEqual(state.outputs(now+.02)[0]['target_torque_nm'], .225*(1-math.exp(-.02/.4)))
+                command, status = state.outputs(now+.02)
+                self.assertAlmostEqual(status['base_target_torque_nm'], .225)
+                self.assertAlmostEqual(command['target_torque_nm'],
+                    status['eligible_target_torque_nm']*(1-math.exp(-.02/.4)))
 
     def test_transient_pause_or_fault_between_output_ticks_also_resets(self):
         for transient in ('paused','fault'):

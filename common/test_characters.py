@@ -79,7 +79,8 @@ class CharacterTests(unittest.TestCase):
         state.receive('vr', vr(1, 'person_03', 'running'), 10.02)
         command, status = state.outputs(10.03)
         self.assertAlmostEqual(status['base_target_torque_nm'], .15)
-        self.assertAlmostEqual(command['target_torque_nm'], .15*(1-math.exp(-.02/.15)))
+        self.assertAlmostEqual(command['target_torque_nm'],
+                               status['eligible_target_torque_nm']*(1-math.exp(-.02/.15)))
         self.assertEqual(status['character_id'], 'person_03')
         self.assertEqual(status['active_character_id'], 'person_01')
         self.assertTrue(status['character_selection_deferred'])

@@ -8,6 +8,7 @@ import math
 from types import MappingProxyType
 
 from common.control import BrakeParameters, brake_state
+from common.fatigue import FatigueParameters
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class Character:
     brake_parameters: BrakeParameters
     parameter_source: str = 'demonstration_only'
     rise_time_constant_s: float = 0.
+    fatigue_parameters: FatigueParameters = FatigueParameters()
 
     def __post_init__(self):
         if not math.isfinite(self.rise_time_constant_s) or self.rise_time_constant_s < 0:
@@ -29,11 +31,14 @@ class Character:
 CHARACTERS = MappingProxyType({
     'demo': Character('demo', '原控制基线', None, '未设定', '无人物设定', BrakeParameters()),
     'person_01': Character('person_01', '示例人物甲', 24, '女',
-        '休闲运动，未做专项训练（虚构设定）', BrakeParameters(stiffness=1.0, max_torque=.20), rise_time_constant_s=.15),
+        '休闲运动，未做专项训练（虚构设定）', BrakeParameters(stiffness=1.0, max_torque=.20),
+        rise_time_constant_s=.15, fatigue_parameters=FatigueParameters(.06, .12, .50)),
     'person_02': Character('person_02', '示例人物乙', 38, '男',
-        '规律力量训练（虚构设定）', BrakeParameters(stiffness=1.5, max_torque=.35), rise_time_constant_s=.4),
+        '规律力量训练（虚构设定）', BrakeParameters(stiffness=1.5, max_torque=.35),
+        rise_time_constant_s=.4, fatigue_parameters=FatigueParameters(.04, .10, .45)),
     'person_03': Character('person_03', '示例人物丙', 52, '女',
-        '有力量训练经历（虚构设定）', BrakeParameters(stiffness=1.8, max_torque=.50), rise_time_constant_s=.8),
+        '有力量训练经历（虚构设定）', BrakeParameters(stiffness=1.8, max_torque=.50),
+        rise_time_constant_s=.8, fatigue_parameters=FatigueParameters(.03, .08, .40)),
 })
 
 

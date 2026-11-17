@@ -52,8 +52,7 @@ class SerialLinkTests(unittest.TestCase):
         state.receive('vr', update, .01)
         state.receive('vr', dict(update, seq=1, match_state='running'), .02)
         self.assertEqual(state.outputs(.03)[0]['target_torque_nm'], 0.)
-        # Retain the original exact V1 225 mN*m assertion after the V0.2 rise
-        # has settled enough to round to the same integer wire magnitude.
+        # Shared PC fatigue/rise result must reach the unchanged V1 magnitude.
         for i in range(1, 71):
             now = .03+i*.05
             fake.incoming.extend(telemetry_frame(i, -400, -200, 0, FLAG_READY | FLAG_ARM_READY))
@@ -62,6 +61,13 @@ class SerialLinkTests(unittest.TestCase):
             output, status = state.outputs(now)
         self.assertAlmostEqual(status['base_target_torque_nm'], .225)
         link.send_command(output, now)
+        command = decode_payload(fake.sent_frame())
+        self.assertTrue(0 < output['target_torque_nm'] <= status['eligible_target_torque_nm'] < .225)
+        self.assertEqual((command.mode, command.target_torque_mnm),
+                         (MODE_ENABLE, round(output['target_torque_nm']*1000)))
+        # Independent of dynamic capacity, the same static reference still
+        # encodes as exactly 225 mN*m in the existing serial V1 frame.
+        link.send_command(dict(output, target_torque_nm=.225), now)
         command = decode_payload(fake.sent_frame())
         self.assertEqual((command.mode, command.target_torque_mnm), (MODE_ENABLE, 225))
         state.receive('vr', dict(update, seq=72, match_state='paused'), now+.01)

@@ -148,8 +148,9 @@ def main():
             state('running')
             pc, sample = wait_for(lambda pc,s: alive(pc,s) and pc.get('active_character_id') == character
                 and pc.get('angle_rad') == -.4 and pc.get('velocity_rad_s') == -.2
-                and abs(pc.get('target_torque_nm', -1)-target) < .001,
-                f'fixed-state {character} target approaches {target:.3f} N*m')
+                and abs(pc.get('base_target_torque_nm', -1)-target) < 1e-9
+                and 0 < pc.get('target_torque_nm', -1) <= pc.get('eligible_target_torque_nm', target) <= target+1e-12,
+                f'fixed-state {character} base {target:.3f} N*m; bounded dynamic output')
             assert sample['poseErrorDegrees'] < .01
         state('paused')
         wait_for(lambda pc,s: alive(pc,s) and pc.get('target_torque_nm') == 0, 'Unity pause stops output')

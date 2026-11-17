@@ -1,5 +1,7 @@
 # 角色库 V0.2：人物选择与阻力建立
 
+> 本文记录 V0.2 提交 `10a368f` 的行为和历史数据。当前版本已加入 [V0.3 疲劳与恢复](character-library-v03.md)，保留相同建立模块，运行目标还会受到疲劳能力约束。
+
 这版完成两件事：用现有 Windows Unity 工程实际验证选角，并在 PC 共用状态层加入简单的阻力建立过程。人物资料和 V0.1 的静态 K、阻力上限保持原样。
 
 年龄、性别和训练经历仍是虚构人物背景，没有参与参数推算。下面的 tau 是手工指定的等效建立时间常数，不是实测神经反应时间，也没有独立反应延迟、疲劳或恢复模型。
@@ -45,10 +47,10 @@ M_next = M_prev + alpha * (M_base - M_prev)
 
 完整 [CSV](test-results/2026-11-16-strength-response.csv) 共 404 行，包含时间、人物、tau、静态目标、建立后幅值、达到目标的比例、有符号力矩及功率。它通过实际 `BridgeState` 计算，机械遥测间隔 20 ms，VR 心跳间隔 200 ms；是确定输入下的软件模型对照，不是人体或制动器测量。
 
-在仓库根目录可重生成：
+以下是 V0.2 时使用的生成脚本。当前分支运行它会计算当前共用模型，输出另存，避免覆盖历史 CSV；精确复现本文数据需使用 V0.2 提交：
 
 ```powershell
-.\.venv\Scripts\python.exe tests/characters/response_table.py --output docs/test-results/2026-11-16-strength-response.csv
+.\.venv\Scripts\python.exe tests/characters/response_table.py --output current-strength-response.csv
 ```
 
 ## 人物选择与通信

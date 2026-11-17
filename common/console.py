@@ -112,6 +112,9 @@ def operator_lines(role, message, info=None, events=()):
         if 'base_target_torque_nm' in message:
             lines.append(f"当前下发阻力：{number(message.get('target_torque_nm'), 3)} N·m（建立后计算值）")
             lines.append(f"静态目标：{number(message['base_target_torque_nm'], 3)} N·m | 建立常数：{number(message.get('character_rise_time_constant_s'))} s")
+            if 'fatigue_level' in message:
+                lines.append(f"等效疲劳：{number(message['fatigue_level'], 3)} | 剩余能力系数：{number(message.get('fatigue_capacity'), 3)}（模型演示值）")
+                lines.append(f"疲劳后目标：{number(message.get('eligible_target_torque_nm'), 3)} N·m（建立前上限）")
         else:
             lines.append(f"计算目标阻力：{number(message.get('target_torque_nm'), 3)} N·m（计算值）")
         if 'serial_applied_target_nm' in message:
