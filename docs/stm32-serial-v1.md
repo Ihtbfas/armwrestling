@@ -1,6 +1,6 @@
 # STM32F405RGT6 ↔ PC 串口协议 V1（供下位机组确认）
 
-> 状态：**V1 修订草案，等待 STM32 组确认后冻结。** 当前只有 Python 编解码/测试，没有实机串口或固件联调。组内确认后再以 V1 作为双方唯一依据。上位机的 `common/serial_protocol.py` 提供 Python 编码、解析参考实现；该文件仅依赖标准库，不会打开 COM 口或改变现有控制循环。真实串口接入随后放在 `real/`。
+> 状态：**V1 修订草案，等待 STM32 组确认后冻结。** PC 的 `real.run` / `real.stm32_link` 已实现 COM 串口、会话握手与遥测接入，并完成 Windows 软件虚拟 COM 验证；尚无实体 STM32 或固件联调结果。组内确认后再以 V1 作为双方唯一依据。`common/serial_protocol.py` 是只依赖标准库的编码、解析参考，打开 COM 时由 `real/` 使用 pyserial。首次接板步骤见 [真实联调准备](real-vr-stm32-integration-v01.md)。本次只更新实现状态说明，V1 字节格式及语义不变。
 
 ## 1. 为什么采用这套协议
 
@@ -74,7 +74,7 @@ Payload 固定 **13 字节**：
 - **STM32 → PC，`type=04 SESSION_ACK`**：payload 原样回传相同 `session_id`。设备收到新的 OPEN，应先清除旧会话、旧序号、旧阻力指令，进入不输出正常阻力的待机状态，再返回 ACK；重复相同 OPEN 可再次应答，但不得重置命令看门狗或恢复输出。
 - PC 只在收到匹配的 ACK 后发送带当前会话编号的 STOP 或 ENABLE。STM32 必须同时检查 `session_id` 和命令的递增 `seq`，对旧会话残留命令一律拒绝。
 - 设备上电、故障/急停、看门狗超时后 `ARM_READY=0`；**故障消除、会话握手、操作员显式重新使能**是三个独立步骤。PC 自动重连和 VR 的 `running` 均不能替代操作员重新授权。实际授权动作及故障复位步骤由下位机/电气组实现并测试。
-- 当前 Python 参考代码仅实现消息字节编解码和组帧，**没有真实 COM 口或设备侧状态机**；上述是给下位机固件和未来 `real/` 接口实施的行为规范。随机会话编号用于防止意外的历史数据混淆，不能视为密码学身份认证或抵御恶意重放。
+- PC 的 `real/stm32_link.py` 已实现上述会话与 COM 接入；`sim/serial_device.py` 是软件模拟状态机，不能代替 STM32 固件或硬件保护。上述设备侧要求仍需下位机组实现并在实板核验。随机会话编号用于防止意外的历史数据混淆，不能视为密码学身份认证或抵御恶意重放。
 
 ## 3. 时间、错误和保护约定
 
@@ -118,7 +118,7 @@ OPEN: A5 5A 01 03 00 00 08 08 07 06 05 04 03 02 01 C5 0D
 
 - `common/serial_protocol.py`：`telemetry_frame()`、`command_frame()`、`FrameParser.feed()`、`decode_payload()`；只用 Python 标准库。
 - `common/test_serial_protocol.py`：编码解码、CRC、分包/粘包、错误帧恢复、序号回绕等测试。
-- 当前 `common/bridge.py` 依然保持 **模拟 STM32 的 TCP 9101** 与 **VR 的 UDP 9102**；**尚未将真实 COM 口接入主桥接循环**。真实串口适配器之后在 `real/` 开发，需用 `pyserial`，Windows 可用 `COMx`，Linux 可用 `/dev/ttyUSB*` 或 `/dev/ttyACM*`。
+- `common/bridge.py` 保持 **模拟 STM32 的 TCP 9101** 与 **VR 的 UDP 9102**；PC 的 COM 串口路线已独立实现为 `python -m real.run --port COMx`，通过 `real/stm32_link.py` 和 pyserial 收发 V1 帧，与 TCP 路线复用 `BridgeState`。两种入口二选一，不能同时占用同一 UDP 端口。实板仍需按本协议确认固件和独立使能，不能用虚拟 COM 结果代替。
 - 此协议不要求 STM32 一定选择 USART + 转接器还是原生 USB CDC。两者均可使用同一应用层帧；下位机主要修改底层驱动。
 
 ## 6. 下位机组确认清单

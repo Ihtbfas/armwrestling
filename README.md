@@ -6,6 +6,8 @@ VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协
 
 第一次接手，先看下面的框架，再按“交接通信测试”运行。只测 VR ↔ PC 时不需要头显、STM32、虚拟串口或 MuJoCo。
 
+当前转入真实设备接入阶段，暂不扩展 V0.3 人物模型。正式 VR 和实体 STM32 可分别按 [最小联调流程](docs/real-vr-stm32-integration-v01.md) 推进，并使用 [结果模板](docs/real-integration-record-template.md) 交接；目前设备和正式工程尚未到位，已完成的是测试准备，不代表真实联调通过。
+
 ## 项目框架与分工
 
 ```mermaid
@@ -239,6 +241,7 @@ MuJoCo 用于单独研究机械布局和控制手感，不参与上述通信测�
 |---|---|
 | [VR UDP V0.1](docs/vr-udp-v01.md) | VR 同学对接时使用的字段与时序 |
 | [STM32 串口 V1](docs/stm32-serial-v1.md) | 下位机组待确认的二进制协议和样例 |
+| [真实 VR / STM32 联调准备](docs/real-vr-stm32-integration-v01.md) | 分线启动、首次接板、验收与结果模板 |
 | [Windows 串口与中文终端](docs/windows-serial-operator-guide.md) | COM 启动、面板含义、自动测试与证据 |
 | [Unity 测试工程配置](docs/windows-unity-udp-test.md) | 参考客户端、场景生成和移植边界 |
 | [Linux PTY 路线](docs/serial-pty-demo.md) | Ubuntu 上的 V1 软件串口测试 |

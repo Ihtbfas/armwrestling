@@ -4,6 +4,8 @@
 >
 > 代码原则：优先保持现有 Python 控制层、`docs/vr-udp-v01.md`、`docs/stm32-serial-v1.md` 不变；如联调发现确实不匹配，记录对端反馈，双方约定后再修改。不要为了联调引入新的神经网络、人物类型、重型框架或完整 UI。
 
+> **2026-11-17 准备阶段：** 用户确认实体板和正式 VR 工程尚未到位。已整理 [分线流程](real-vr-stm32-integration-v01.md) 和 [实际结果模板](real-integration-record-template.md)，真实 A/B/C 阶段保持未执行。串口协议文档只修正了落后的实现状态描述，帧格式不变。以下保留原任务要求。
+
 ## 当前已有的依据
 
 - PC 共用角色/控制状态：`common/control.py`、`common/characters.py`、`common/strength_response.py`、`common/fatigue.py`、`common/state.py`。
