@@ -5,13 +5,15 @@ from common.protocol import validate_incoming
 from common.strength_response import StrengthResponse
 from common.fatigue import FatigueState
 from common.direction_response import DEFAULT_RETURN_MODE, RETURN_MODES, direction_scale
+from common.reaction_delay import ReactionDelay
 from common.resistance_profiles import DEFAULT_RESISTANCE_PROFILE, RESISTANCE_PROFILES, profile_target
 from common.strategies import ActiveMatchClock, DEFAULT_STRATEGY, STRATEGY_NAMES, strategy_scale
 
 
 class BridgeState:
     def __init__(self, telemetry_timeout=0.25, vr_timeout=1.0, *, strategy=DEFAULT_STRATEGY,
-                 resistance_profile=DEFAULT_RESISTANCE_PROFILE, return_mode=DEFAULT_RETURN_MODE):
+                 resistance_profile=DEFAULT_RESISTANCE_PROFILE, return_mode=DEFAULT_RETURN_MODE,
+                 reaction_delay_ms=0):
         if strategy not in STRATEGY_NAMES:
             raise ValueError(f'unknown strategy: {strategy}')
         if resistance_profile not in RESISTANCE_PROFILES:
@@ -26,6 +28,7 @@ class BridgeState:
         self.seq = 0
         self._character = None  # First valid VR update chooses the initial round.
         self._strength = StrengthResponse()
+        self._reaction = ReactionDelay(reaction_delay_ms)
         self._fatigue = FatigueState()
         self._strategy = strategy
         self._resistance_profile = resistance_profile
@@ -35,9 +38,13 @@ class BridgeState:
     def clear(self, role):
         self.latest[role] = None
         self.received[role] = None
-        self._strength.reset()
+        self._reset_response()
         self._fatigue.freeze()
         self._match_clock.freeze()
+
+    def _reset_response(self):
+        self._strength.reset()
+        self._reaction.reset()
 
     def receive(self, role, message, now):
         validate_incoming(message, role)
@@ -51,7 +58,7 @@ class BridgeState:
                 or (role == 'stm32' and message['device_status'] != 'ready')):
             # Reset even when a pause/fault/expired packet is replaced before
             # outputs() gets its next tick. Rejected packets never reach here.
-            self._strength.reset()
+            self._reset_response()
         if (expired or (role == 'stm32' and message['device_status'] != 'ready')
                 or (role == 'vr' and (previous is None or
                     previous['match_state'] != message['match_state']))):
@@ -94,10 +101,12 @@ class BridgeState:
         character = self._character or CHARACTERS['demo']
         parameters = character.brake_parameters
         requested = vr['character_id'] if fresh['vr'] else None
-        base_target = requested_target = eligible = target = actual = load_proxy = scale = 0.0
+        base_target = requested_target = effective_request = 0.
+        eligible = target = actual = load_proxy = scale = 0.
         strategy = 'demo' if character.character_id == 'demo' else self._strategy
         resistance_profile = DEFAULT_RESISTANCE_PROFILE if strategy == 'demo' else self._resistance_profile
         return_mode = DEFAULT_RETURN_MODE if strategy == 'demo' else self._return_mode
+        delay_ms = 0 if strategy == 'demo' else self._reaction.delay_ms
         qdot = parameters.forward_sign*telemetry['velocity_rad_s'] if fresh['stm32'] else None
         return_factor = 1.
         fatigue_parameters = character.fatigue_parameters
@@ -109,15 +118,27 @@ class BridgeState:
                                    self._match_clock.elapsed)
             return_factor = direction_scale(return_mode, qdot, parameters.speed_transition)
             requested_target = base_target*scale*return_factor
+            effective_request = requested_target
+            if delay_ms:
+                was_closed = self._reaction.elapsed_ms < delay_ms
+                effective_request = self._reaction.update(requested_target, now,
+                                                          StrengthResponse.MAX_CONTINUOUS_GAP_S)
+                if effective_request == 0.:
+                    self._strength.reset()
+                elif was_closed:
+                    # Recovery already ran during the wait. Do not charge the
+                    # last waiting interval at the newly enabled load.
+                    self._fatigue.freeze()
             # Equivalent load only, not measured muscle activation/user force.
-            load_proxy = min(1., max(0., requested_target/max(parameters.max_torque, 1e-9)))
+            load_proxy = min(1., max(0., effective_request/max(parameters.max_torque, 1e-9)))
             self._fatigue.update(load_proxy, fatigue_parameters, now)
             capacity = 1-fatigue_parameters.fatigue_loss_fraction*self._fatigue.value
-            eligible = requested_target*capacity
-            target = self._strength.update(eligible, character.rise_time_constant_s, now)
+            eligible = effective_request*capacity
+            if not delay_ms or effective_request > 0.:
+                target = self._strength.update(eligible, character.rise_time_constant_s, now)
             actual = passive_torque(target, telemetry['velocity_rad_s'], parameters.speed_transition)
         else:
-            self._strength.reset()
+            self._reset_response()
             self._match_clock.freeze()
             if reason == 'match_paused':
                 self._fatigue.update(0., fatigue_parameters, now)
@@ -143,6 +164,9 @@ class BridgeState:
                       return_mode=return_mode, qdot_rad_s=qdot, direction_scale=return_factor,
                       strategy=strategy, strategy_scale=scale,
                       requested_target_torque_nm=requested_target,
+                      effective_requested_target_torque_nm=effective_request,
+                      reaction_delay_ms=delay_ms, reaction_waiting=requested_target > 0. and effective_request == 0.,
+                      reaction_elapsed_ms=self._reaction.elapsed_ms if delay_ms else 0.,
                       active_match_time_s=self._match_clock.elapsed,
                       eligible_target_torque_nm=eligible,
                       fatigue_level=self._fatigue.value, fatigue_capacity=capacity,

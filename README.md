@@ -12,6 +12,8 @@ V0.5-A 的 TCP 软件模拟入口可用 `--resistance-profile legacy|narrow|star
 
 V0.5-B 以小自由区扩展推进和同起点回推试验。软件仿真可用 `--resistance-profile narrow --return-mode relief` 体验速度相关回推减阻。[方向响应与复现](docs/character-library-v05b.md)
 
+V0.5-C 补测大角度回推与滑行，并在 TCP 软件仿真中加入可选的 `--reaction-delay-ms`。默认 0 ms。[软件候选、曲线与复现](docs/character-library-v05c.md)
+
 ## 项目框架与分工
 
 ```mermaid

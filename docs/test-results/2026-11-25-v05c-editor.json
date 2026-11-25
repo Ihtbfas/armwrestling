@@ -1,0 +1,102 @@
+{
+  "date": "2026-11-25",
+  "vr_commit": "129c989035b7657af526f9eec9bfe6eebea50e56",
+  "unity": "2022.3.62f3c1",
+  "graphics": "Direct3D11",
+  "scene": "Assets/Scenes/ArmWrestlingMain.unity",
+  "scope": "Original P3.0 Editor validation with 0.18 N m software input and TCP delay enabled",
+  "runtime_errors": 0,
+  "checks": [
+    "production-scene bilateral UDP with valid zero",
+    "waiting confirmed demo",
+    "ready STOP",
+    "countdown STOP and zero fatigue",
+    "fighting enabled",
+    "pause STOP",
+    "continue enabled",
+    "Unity main-loop pause caused PC heartbeat timeout",
+    "Unity main-loop recovery kept round paused",
+    "simulator lost, null angle, paused without result",
+    "recovered valid zero after simulator restart",
+    "status timeout paused round without result",
+    "PC restart accepted lower status sequence",
+    "finished STOP after PlayerWins",
+    "waiting confirmed demo",
+    "ready STOP",
+    "countdown STOP and zero fatigue",
+    "fighting enabled",
+    "finished STOP after OpponentWins",
+    "waiting confirmed person_01",
+    "ready STOP",
+    "countdown STOP and zero fatigue",
+    "fighting enabled",
+    "finished STOP after PlayerWins",
+    "waiting confirmed person_02",
+    "ready STOP",
+    "countdown STOP and zero fatigue",
+    "fighting enabled",
+    "finished STOP after PlayerWins",
+    "waiting confirmed person_03",
+    "ready STOP",
+    "countdown STOP and zero fatigue",
+    "fighting enabled",
+    "finished STOP after PlayerWins",
+    "play again reached Ready, STOP, zero fatigue"
+  ],
+  "post_play": {
+    "reason": "vr_timeout",
+    "mode": "stop",
+    "target_torque_nm": 0.0
+  },
+  "person_02_trace": {
+    "wait_open_at_ms": 219.0,
+    "first_positive_at_ms": 250.0,
+    "samples": [
+      {
+        "time_from_trigger_ms": 0.0,
+        "seq": 573,
+        "angle_rad": -0.05164056499124202,
+        "velocity_rad_s": -0.5554228892620364,
+        "reaction_delay_ms": 200,
+        "reaction_waiting": true,
+        "reaction_elapsed_ms": 0.0,
+        "requested_target_torque_nm": 0.0011868937407925764,
+        "effective_requested_target_torque_nm": 0.0,
+        "target_torque_nm": 0.0,
+        "fatigue_level": 0.0
+      },
+      {
+        "time_from_trigger_ms": 219.0,
+        "seq": 580,
+        "angle_rad": -0.1571334032809236,
+        "velocity_rad_s": -0.9395722381686149,
+        "reaction_delay_ms": 200,
+        "reaction_waiting": false,
+        "reaction_elapsed_ms": 200.0,
+        "requested_target_torque_nm": 0.07750742363926078,
+        "effective_requested_target_torque_nm": 0.07750742363926078,
+        "target_torque_nm": 0.0,
+        "fatigue_level": 0.0
+      },
+      {
+        "time_from_trigger_ms": 250.0,
+        "seq": 581,
+        "angle_rad": -0.17649518770066097,
+        "velocity_rad_s": -0.9913077081564723,
+        "reaction_delay_ms": 200,
+        "reaction_waiting": false,
+        "reaction_elapsed_ms": 200.0,
+        "requested_target_torque_nm": 0.09151502520398992,
+        "effective_requested_target_torque_nm": 0.09151502520398992,
+        "target_torque_nm": 0.00682355333045163,
+        "fatigue_level": 0.00032380132249904545
+      }
+    ]
+  },
+  "python_tests": {
+    "total": 107,
+    "passed": 106,
+    "skipped_linux_pty": 1,
+    "frozen_v05b_equal_steps": 48000
+  }
+}

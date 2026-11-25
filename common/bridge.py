@@ -11,6 +11,7 @@ from common.protocol import JsonSocket, MAX_LINE, decode_datagram, encode_datagr
 from common.state import BridgeState, vr_payload
 from common.console import add_console_arguments, reporter_from_args
 from common.direction_response import DEFAULT_RETURN_MODE, RETURN_MODES
+from common.reaction_delay import MAX_REACTION_DELAY_MS
 from common.resistance_profiles import DEFAULT_RESISTANCE_PROFILE, RESISTANCE_PROFILES
 from common.strategies import DEFAULT_STRATEGY, STRATEGY_NAMES
 
@@ -29,10 +30,11 @@ def positive(value):
 
 def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_timeout=1.,
           reporter=None, *, strategy=DEFAULT_STRATEGY, resistance_profile=DEFAULT_RESISTANCE_PROFILE,
-          return_mode=DEFAULT_RETURN_MODE):
+          return_mode=DEFAULT_RETURN_MODE, reaction_delay_ms=0):
     emit = reporter or log
     state = BridgeState(telemetry_timeout, vr_timeout, strategy=strategy,
-                        resistance_profile=resistance_profile, return_mode=return_mode)
+                        resistance_profile=resistance_profile, return_mode=return_mode,
+                        reaction_delay_ms=reaction_delay_ms)
     peer = None  # The only TCP peer is the simulated STM32.
     blocked_since = None
     vr_address = None  # Reply to the most recent valid VR UDP sender.
@@ -52,7 +54,7 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
         emit(dict(event='listening', host=host, stm_port=listener.getsockname()[1],
                  vr_port=vr_socket.getsockname()[1], stm_transport='tcp', vr_transport='udp',
                  configured_strategy=strategy, configured_resistance_profile=resistance_profile,
-                 configured_return_mode=return_mode))
+                 configured_return_mode=return_mode, configured_reaction_delay_ms=reaction_delay_ms))
 
         def drop_stm(reason):
             nonlocal peer, blocked_since
@@ -172,13 +174,16 @@ def main():
                         help='TCP software-simulation resistance curve (default: legacy)')
     parser.add_argument('--return-mode', choices=RETURN_MODES, default=DEFAULT_RETURN_MODE,
                         help='TCP simulation return response; relief requires the narrow profile')
+    parser.add_argument('--reaction-delay-ms', type=int, default=0,
+                        help=f'TCP simulation initial demand wait, 0..{MAX_REACTION_DELAY_MS} ms (default: 0)')
     add_console_arguments(parser)
     args = parser.parse_args()
     with reporter_from_args('PC 上位机（TCP 模拟链路）', args) as reporter:
         try:
             serve(args.host, args.stm_port, args.vr_port, args.duration,
                   args.telemetry_timeout, args.vr_timeout, reporter, strategy=args.strategy,
-                  resistance_profile=args.resistance_profile, return_mode=args.return_mode)
+                  resistance_profile=args.resistance_profile, return_mode=args.return_mode,
+                  reaction_delay_ms=args.reaction_delay_ms)
         except KeyboardInterrupt:
             pass
         except ValueError as error:
