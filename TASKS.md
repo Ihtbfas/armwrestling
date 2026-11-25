@@ -1,14 +1,13 @@
 # TASKS
 
-## 当前阶段（2026-11-17）：真实 VR / STM32 接入
+## 当前阶段：软件收口，准备实体联调
 
-- [x] 保留 V0.3，暂停增加人物模型功能；整理 [分线联调流程](docs/real-vr-stm32-integration-v01.md) 与 [结果模板](docs/real-integration-record-template.md)。
-- [ ] 正式 VR 工程到位后执行实际 UDP 验证，可先用模拟机械，不等待 STM32。
-- [ ] 实体 STM32 到位后，在不接励磁功率及人手的条件下验证 COM、V1 会话和遥测，不等待 VR。
-- [ ] 下位机/电气组确认硬件保护和独立使能后，再做无人台架标定与合并联调；不开展人体对抗。
-- [ ] Windows MuJoCo WinError 1114 单独保留为环境待办，不阻塞上述通信准备。
-
-用户已确认当前无实体板或正式工程，本次交付为准备阶段，真实联调未执行。后续历史记录如下。
+- [x] V0.1 至 V0.5-C 软件控制模型开发已完成，正式 VR 主场景已完成软件联合仿真。[收口说明与验证记录](docs/character-library-v05c.md)
+- [x] 默认使用原自由区、对称制动和 0 ms 延迟（`legacy + symmetric + 0 ms`）。优先验证的实验候选为 `narrow + symmetric + 0 ms`，`relief` 和反应延迟保留为软件对照。
+- [ ] 实体 STM32 到位后，先验证 COM、V1 会话和遥测。按现有流程分线联调并记录结果。[实体联调流程](docs/real-vr-stm32-integration-v01.md) · [记录模板](docs/real-integration-record-template.md)
+- [ ] 测量机械零位、有效行程、惯量和阻尼。
+- [ ] 下位机与电气组确认独立保护后，在无人接触台架标定制动器力矩与响应时间。
+- [ ] Windows MuJoCo WinError 1114 作为独立环境待办。
 
 ## V0.1 需求
 
