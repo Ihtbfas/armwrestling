@@ -10,6 +10,7 @@ import time
 from common.protocol import JsonSocket, MAX_LINE, decode_datagram, encode_datagram, validate_incoming
 from common.state import BridgeState, vr_payload
 from common.console import add_console_arguments, reporter_from_args
+from common.strategies import DEFAULT_STRATEGY, STRATEGY_NAMES
 
 
 def log(message):
@@ -24,9 +25,10 @@ def positive(value):
     return result
 
 
-def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_timeout=1., reporter=None):
+def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_timeout=1.,
+          reporter=None, *, strategy=DEFAULT_STRATEGY):
     emit = reporter or log
-    state = BridgeState(telemetry_timeout, vr_timeout)
+    state = BridgeState(telemetry_timeout, vr_timeout, strategy=strategy)
     peer = None  # The only TCP peer is the simulated STM32.
     blocked_since = None
     vr_address = None  # Reply to the most recent valid VR UDP sender.
@@ -44,7 +46,8 @@ def serve(host, stm_port, vr_port, duration=None, telemetry_timeout=.25, vr_time
         vr_socket.setblocking(False)
         selector.register(vr_socket, selectors.EVENT_READ, 'vr_udp')
         emit(dict(event='listening', host=host, stm_port=listener.getsockname()[1],
-                 vr_port=vr_socket.getsockname()[1], stm_transport='tcp', vr_transport='udp'))
+                 vr_port=vr_socket.getsockname()[1], stm_transport='tcp', vr_transport='udp',
+                 configured_strategy=strategy))
 
         def drop_stm(reason):
             nonlocal peer, blocked_since
@@ -158,12 +161,14 @@ def main():
     parser.add_argument('--telemetry-timeout', type=positive, default=.25)
     parser.add_argument('--vr-timeout', type=positive, default=1.)
     parser.add_argument('--duration', type=positive)
+    parser.add_argument('--strategy', choices=STRATEGY_NAMES, default=DEFAULT_STRATEGY,
+                        help='PC-local opponent policy (default: balanced)')
     add_console_arguments(parser)
     args = parser.parse_args()
     with reporter_from_args('PC 上位机（TCP 模拟链路）', args) as reporter:
         try:
             serve(args.host, args.stm_port, args.vr_port, args.duration,
-                  args.telemetry_timeout, args.vr_timeout, reporter)
+                  args.telemetry_timeout, args.vr_timeout, reporter, strategy=args.strategy)
         except KeyboardInterrupt:
             pass
         except OSError as error:

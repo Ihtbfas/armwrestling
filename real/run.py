@@ -12,13 +12,15 @@ from common.bridge import log, positive
 from common.protocol import MAX_LINE, decode_datagram, encode_datagram, validate_incoming
 from common.state import BridgeState, vr_payload
 from common.console import add_console_arguments, reporter_from_args
+from common.strategies import DEFAULT_STRATEGY, STRATEGY_NAMES
 from real.stm32_link import Stm32Link
 
 
 def serve(port, host='127.0.0.1', vr_port=9102, baudrate=115200,
-          duration=None, telemetry_timeout=.25, vr_timeout=1., reporter=None):
+          duration=None, telemetry_timeout=.25, vr_timeout=1., reporter=None, *,
+          strategy=DEFAULT_STRATEGY):
     emit = reporter or log
-    state = BridgeState(telemetry_timeout, vr_timeout)
+    state = BridgeState(telemetry_timeout, vr_timeout, strategy=strategy)
     link = None
     vr_address = None
     start = time.monotonic()
@@ -28,7 +30,7 @@ def serve(port, host='127.0.0.1', vr_port=9102, baudrate=115200,
         vr_socket.bind((host, vr_port))
         vr_socket.setblocking(False)
         emit(dict(event='listening', stm_transport='serial-v1', port=port, baudrate=baudrate,
-                 vr_transport='udp', vr_port=vr_socket.getsockname()[1]))
+                 vr_transport='udp', vr_port=vr_socket.getsockname()[1], configured_strategy=strategy))
         try:
             while duration is None or time.monotonic() - start < duration:
                 now = time.monotonic()
@@ -125,11 +127,14 @@ def main():
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--vr-port', type=int, default=9102)
     parser.add_argument('--duration', type=positive)
+    parser.add_argument('--strategy', choices=STRATEGY_NAMES, default=DEFAULT_STRATEGY,
+                        help='PC-local opponent policy (default: balanced)')
     add_console_arguments(parser)
     args = parser.parse_args()
     with reporter_from_args('PC 上位机（V1 串口 + Unity UDP）', args) as reporter:
         try:
-            serve(args.port, args.host, args.vr_port, args.baudrate, args.duration, reporter=reporter)
+            serve(args.port, args.host, args.vr_port, args.baudrate, args.duration,
+                  reporter=reporter, strategy=args.strategy)
         except KeyboardInterrupt:
             pass
         except (OSError, RuntimeError) as error:

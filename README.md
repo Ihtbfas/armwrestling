@@ -6,7 +6,7 @@ VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协
 
 第一次接手，先看下面的框架，再按“交接通信测试”运行。只测 VR ↔ PC 时不需要头显、STM32、虚拟串口或 MuJoCo。
 
-P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本仓库的模拟下位机完成软件联合仿真。实体 STM32 的独立验收见 [首次接板流程](docs/real-vr-stm32-integration-v01.md)。
+P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本仓库的模拟下位机完成软件联合仿真。实体 STM32 的独立验收见 [首次接板流程](docs/real-vr-stm32-integration-v01.md)。V0.4 可用 PC 启动参数 `--strategy balanced|defensive|rhythmic`，默认均衡。启动方式、策略和对比数据见 [V0.4 策略说明](docs/character-library-v04.md)。
 
 ## 项目框架与分工
 
