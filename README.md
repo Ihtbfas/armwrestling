@@ -10,6 +10,8 @@ P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本
 
 V0.5-A 的 TCP 软件模拟入口可用 `--resistance-profile legacy|narrow|start-resistance` 比较阻力生效区域，默认沿用原自由区。[实验说明与曲线](docs/character-library-v05a.md)
 
+V0.5-B 以小自由区扩展推进和同起点回推试验。软件仿真可用 `--resistance-profile narrow --return-mode relief` 体验速度相关回推减阻。[方向响应与复现](docs/character-library-v05b.md)
+
 ## 项目框架与分工
 
 ```mermaid

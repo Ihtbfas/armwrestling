@@ -4,17 +4,22 @@ from common.characters import CHARACTERS, resolve_character
 from common.protocol import validate_incoming
 from common.strength_response import StrengthResponse
 from common.fatigue import FatigueState
+from common.direction_response import DEFAULT_RETURN_MODE, RETURN_MODES, direction_scale
 from common.resistance_profiles import DEFAULT_RESISTANCE_PROFILE, RESISTANCE_PROFILES, profile_target
 from common.strategies import ActiveMatchClock, DEFAULT_STRATEGY, STRATEGY_NAMES, strategy_scale
 
 
 class BridgeState:
     def __init__(self, telemetry_timeout=0.25, vr_timeout=1.0, *, strategy=DEFAULT_STRATEGY,
-                 resistance_profile=DEFAULT_RESISTANCE_PROFILE):
+                 resistance_profile=DEFAULT_RESISTANCE_PROFILE, return_mode=DEFAULT_RETURN_MODE):
         if strategy not in STRATEGY_NAMES:
             raise ValueError(f'unknown strategy: {strategy}')
         if resistance_profile not in RESISTANCE_PROFILES:
             raise ValueError(f'unknown resistance profile: {resistance_profile}')
+        if return_mode not in RETURN_MODES:
+            raise ValueError(f'unknown return mode: {return_mode}')
+        if return_mode == 'relief' and resistance_profile != 'narrow':
+            raise ValueError('return relief requires the narrow resistance profile')
         self.timeouts = {'stm32': telemetry_timeout, 'vr': vr_timeout}
         self.latest = {'stm32': None, 'vr': None}
         self.received = {'stm32': None, 'vr': None}
@@ -24,6 +29,7 @@ class BridgeState:
         self._fatigue = FatigueState()
         self._strategy = strategy
         self._resistance_profile = resistance_profile
+        self._return_mode = return_mode
         self._match_clock = ActiveMatchClock()
 
     def clear(self, role):
@@ -91,6 +97,9 @@ class BridgeState:
         base_target = requested_target = eligible = target = actual = load_proxy = scale = 0.0
         strategy = 'demo' if character.character_id == 'demo' else self._strategy
         resistance_profile = DEFAULT_RESISTANCE_PROFILE if strategy == 'demo' else self._resistance_profile
+        return_mode = DEFAULT_RETURN_MODE if strategy == 'demo' else self._return_mode
+        qdot = parameters.forward_sign*telemetry['velocity_rad_s'] if fresh['stm32'] else None
+        return_factor = 1.
         fatigue_parameters = character.fatigue_parameters
         if reason == 'running':
             brake = brake_state(telemetry['angle_rad'], telemetry['velocity_rad_s'], parameters)
@@ -98,7 +107,8 @@ class BridgeState:
             self._match_clock.advance(now, StrengthResponse.MAX_CONTINUOUS_GAP_S)
             scale = strategy_scale(strategy, brake.relative_angle, parameters.free_boundary,
                                    self._match_clock.elapsed)
-            requested_target = base_target*scale
+            return_factor = direction_scale(return_mode, qdot, parameters.speed_transition)
+            requested_target = base_target*scale*return_factor
             # Equivalent load only, not measured muscle activation/user force.
             load_proxy = min(1., max(0., requested_target/max(parameters.max_torque, 1e-9)))
             self._fatigue.update(load_proxy, fatigue_parameters, now)
@@ -130,6 +140,7 @@ class BridgeState:
                       target_torque_nm=target, brake_torque_nm=actual,
                       base_target_torque_nm=base_target,
                       resistance_profile=resistance_profile,
+                      return_mode=return_mode, qdot_rad_s=qdot, direction_scale=return_factor,
                       strategy=strategy, strategy_scale=scale,
                       requested_target_torque_nm=requested_target,
                       active_match_time_s=self._match_clock.elapsed,
