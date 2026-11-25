@@ -6,7 +6,7 @@ VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协
 
 第一次接手，先看下面的框架，再按“交接通信测试”运行。只测 VR ↔ PC 时不需要头显、STM32、虚拟串口或 MuJoCo。
 
-当前转入真实设备接入阶段，暂不扩展 V0.3 人物模型。正式 VR 和实体 STM32 可分别按 [最小联调流程](docs/real-vr-stm32-integration-v01.md) 推进，并使用 [结果模板](docs/real-integration-record-template.md) 交接；目前设备和正式工程尚未到位，已完成的是测试准备，不代表真实联调通过。
+P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本仓库的模拟下位机完成软件联合仿真。实体 STM32 的独立验收见 [首次接板流程](docs/real-vr-stm32-integration-v01.md)。
 
 ## 项目框架与分工
 
@@ -52,6 +52,23 @@ armwrestling/
 `common/bridge.py` 和 `real/run.py` 是两种 PC 启动方式，运行时选一个。两者都会占用 UDP 9102，不能同时启动。PC 正式程序不引用 `tests/unity/`。
 
 ## 交接通信测试：先跑通 VR ↔ PC
+
+使用正式主场景联调时，在 PC 仓库根目录分别打开两个 PowerShell 窗口：
+
+```powershell
+# 窗口一，保持 PC 状态日志
+.\.venv\Scripts\python.exe -m common.bridge --log-file "$env:TEMP\arm-p3-pc.jsonl"
+# 窗口二，键盘控制模拟用户施力
+.\.venv\Scripts\python.exe -m sim.mock_stm32 --manual --torque 0.6 --log-file "$env:TEMP\arm-p3-sim.jsonl"
+```
+
+在 VR 工程打开 `Assets/Scenes/ArmWrestlingMain.unity`，进入 Play 后选择“改用网络数据”，连接 `127.0.0.1:9102`。选择人物并开始倒计时。模拟器窗口使用 **1 下压、2 回推、0 松手、R 软件回零**，按键切换持续输入，无需长按。启动时零施力。建议在倒计时前按 R，将模拟关节保持在零位，开赛后再按 1 或 2。松手后的运动由模拟惯量和制动决定。
+
+重复试验可用 `--sequence down:2,back:1,release:0.5` 替代 `--manual`。序列从首条有效 ENABLE 开始，动作时长按 20 ms 仿真步计，播完松手。自动化也可用 `--input-file 路径`，写入 UTF-8 单个动作 `down`、`back`、`release` 或 `reset`，关节在 `reset` 期间保持零位。省略这三个选项时沿用原周期施力。 `--torque` 设置模拟用户力矩幅值，默认 0.15 N·m，范围 0–0.8 N·m。制动仍由 PC 计算。
+
+固定遥测的阻力/疲劳对照和相同用户施力的闭环轨迹见 [P3.0 PC 侧试验](docs/test-results/2026-11-25-p3-pc-input.md)。
+
+### 参考测试客户端路线
 
 这条路线适合 VR 同学拿到仓库后先确认自己的 UDP 客户端能用。模拟 STM32 通过 TCP 提供机械状态，PC 仍然执行现有控制计算；这一步只验证 UDP，不算串口 V1 验证。
 

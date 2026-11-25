@@ -73,7 +73,12 @@ def operator_lines(role, message, info=None, events=()):
     elif info.get('stm_port') or info.get('stm_transport') == 'tcp' or device:
         lines.append(f"下位机链路：TCP 模拟 / 127.0.0.1:{info.get('stm_port', 9101)}")
     if device:
-        lines.append('本窗口是软件模拟设备；模拟人周期性下压、回推、松手。')
+        input_mode = info.get('input_mode', 'cycle')
+        lines.append({
+            'manual': '按 1 下压、2 回推、0 松手、R 软件回零并保持。',
+            'file': '本窗口按本地输入文件模拟施力。',
+            'sequence': '本窗口在收到首条有效 ENABLE 后播放施力序列。',
+        }.get(input_mode, '本窗口是软件模拟设备。模拟人周期性下压、回推、松手。'))
         if 'session_ready' in message:
             lines.append('V1 会话：' + ('已建立' if message['session_ready'] else '等待握手')
                          + ' | 模拟许可：' + ('已授权' if message.get('armed') else '未授权'))
