@@ -1,0 +1,260 @@
+{
+  "date": "2026-11-25",
+  "vr_commit": "129c989035b7657af526f9eec9bfe6eebea50e56",
+  "scope": "Production Windows Editor plus software STM32, P3.0 flow and 0.8 N m input for complete rounds",
+  "strategy": "balanced",
+  "unity": {
+    "legacy": {
+      "result": "pass",
+      "editor": "2022.3.62f3c1",
+      "graphics": "Direct3D11",
+      "scene": "Assets/Scenes/ArmWrestlingMain.unity",
+      "unity_runtime_errors": 0,
+      "checks": [
+        "production-scene bilateral UDP with valid zero",
+        "waiting confirmed demo",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "pause STOP",
+        "continue enabled",
+        "Unity main-loop pause caused PC heartbeat timeout",
+        "Unity main-loop recovery kept round paused",
+        "simulator lost, null angle, paused without result",
+        "recovered valid zero after simulator restart",
+        "status timeout paused round without result",
+        "PC restart accepted lower status sequence",
+        "finished STOP after PlayerWins",
+        "waiting confirmed demo",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after OpponentWins",
+        "waiting confirmed person_01",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "waiting confirmed person_02",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "waiting confirmed person_03",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "play again reached Ready, STOP, zero fatigue"
+      ],
+      "verdicts": [
+        {
+          "character": "demo",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "demo",
+          "outcome": "OpponentWins"
+        },
+        {
+          "character": "person_01",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "person_02",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "person_03",
+          "outcome": "PlayerWins"
+        }
+      ],
+      "person_02_at_software_zero": {
+        "seq": 512,
+        "angle_rad": 0.0,
+        "velocity_rad_s": 0.0,
+        "resistance_profile": "legacy",
+        "strategy": "balanced",
+        "base_target_torque_nm": 0.0,
+        "target_torque_nm": 0.0,
+        "brake_torque_nm": -0.0,
+        "fatigue_level": 0.0
+      },
+      "post_play": {
+        "reason": "vr_timeout",
+        "mode": "stop",
+        "target_torque_nm": 0.0
+      }
+    },
+    "narrow": {
+      "result": "pass",
+      "editor": "2022.3.62f3c1",
+      "graphics": "Direct3D11",
+      "scene": "Assets/Scenes/ArmWrestlingMain.unity",
+      "unity_runtime_errors": 0,
+      "checks": [
+        "production-scene bilateral UDP with valid zero",
+        "waiting confirmed demo",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "pause STOP",
+        "continue enabled",
+        "Unity main-loop pause caused PC heartbeat timeout",
+        "Unity main-loop recovery kept round paused",
+        "simulator lost, null angle, paused without result",
+        "recovered valid zero after simulator restart",
+        "status timeout paused round without result",
+        "PC restart accepted lower status sequence",
+        "finished STOP after PlayerWins",
+        "waiting confirmed demo",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after OpponentWins",
+        "waiting confirmed person_01",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "waiting confirmed person_02",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "waiting confirmed person_03",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "play again reached Ready, STOP, zero fatigue"
+      ],
+      "verdicts": [
+        {
+          "character": "demo",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "demo",
+          "outcome": "OpponentWins"
+        },
+        {
+          "character": "person_01",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "person_02",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "person_03",
+          "outcome": "PlayerWins"
+        }
+      ],
+      "person_02_at_software_zero": {
+        "seq": 560,
+        "angle_rad": 0.0,
+        "velocity_rad_s": 0.0,
+        "resistance_profile": "narrow",
+        "strategy": "balanced",
+        "base_target_torque_nm": 0.0,
+        "target_torque_nm": 0.0,
+        "brake_torque_nm": -0.0,
+        "fatigue_level": 0.0
+      },
+      "post_play": {
+        "reason": "vr_timeout",
+        "mode": "stop",
+        "target_torque_nm": 0.0
+      }
+    },
+    "start-resistance": {
+      "result": "pass",
+      "editor": "2022.3.62f3c1",
+      "graphics": "Direct3D11",
+      "scene": "Assets/Scenes/ArmWrestlingMain.unity",
+      "unity_runtime_errors": 0,
+      "checks": [
+        "production-scene bilateral UDP with valid zero",
+        "waiting confirmed demo",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "pause STOP",
+        "continue enabled",
+        "Unity main-loop pause caused PC heartbeat timeout",
+        "Unity main-loop recovery kept round paused",
+        "simulator lost, null angle, paused without result",
+        "recovered valid zero after simulator restart",
+        "status timeout paused round without result",
+        "PC restart accepted lower status sequence",
+        "finished STOP after PlayerWins",
+        "waiting confirmed demo",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after OpponentWins",
+        "waiting confirmed person_01",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "waiting confirmed person_02",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "waiting confirmed person_03",
+        "ready STOP",
+        "countdown STOP and zero fatigue",
+        "fighting enabled",
+        "finished STOP after PlayerWins",
+        "play again reached Ready, STOP, zero fatigue"
+      ],
+      "verdicts": [
+        {
+          "character": "demo",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "demo",
+          "outcome": "OpponentWins"
+        },
+        {
+          "character": "person_01",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "person_02",
+          "outcome": "PlayerWins"
+        },
+        {
+          "character": "person_03",
+          "outcome": "PlayerWins"
+        }
+      ],
+      "person_02_at_software_zero": {
+        "seq": 544,
+        "angle_rad": 0.0,
+        "velocity_rad_s": 0.0,
+        "resistance_profile": "start-resistance",
+        "strategy": "balanced",
+        "base_target_torque_nm": 0.04192477042468104,
+        "target_torque_nm": 0.02892709993650125,
+        "brake_torque_nm": -0.0,
+        "fatigue_level": 0.002198960932162732
+      },
+      "post_play": {
+        "reason": "vr_timeout",
+        "mode": "stop",
+        "target_torque_nm": 0.0
+      }
+    }
+  },
+  "python_tests": {
+    "total": 97,
+    "passed": 96,
+    "skipped_linux_pty": 1,
+    "frozen_v04_equal_steps": 12000
+  }
+}

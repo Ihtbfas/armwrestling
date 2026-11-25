@@ -8,6 +8,8 @@ VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协
 
 P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本仓库的模拟下位机完成软件联合仿真。实体 STM32 的独立验收见 [首次接板流程](docs/real-vr-stm32-integration-v01.md)。V0.4 可用 PC 启动参数 `--strategy balanced|defensive|rhythmic`，默认均衡。启动方式、策略和对比数据见 [V0.4 策略说明](docs/character-library-v04.md)。
 
+V0.5-A 的 TCP 软件模拟入口可用 `--resistance-profile legacy|narrow|start-resistance` 比较阻力生效区域，默认沿用原自由区。[实验说明与曲线](docs/character-library-v05a.md)
+
 ## 项目框架与分工
 
 ```mermaid

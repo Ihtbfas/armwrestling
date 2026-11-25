@@ -4,13 +4,17 @@ from common.characters import CHARACTERS, resolve_character
 from common.protocol import validate_incoming
 from common.strength_response import StrengthResponse
 from common.fatigue import FatigueState
+from common.resistance_profiles import DEFAULT_RESISTANCE_PROFILE, RESISTANCE_PROFILES, profile_target
 from common.strategies import ActiveMatchClock, DEFAULT_STRATEGY, STRATEGY_NAMES, strategy_scale
 
 
 class BridgeState:
-    def __init__(self, telemetry_timeout=0.25, vr_timeout=1.0, *, strategy=DEFAULT_STRATEGY):
+    def __init__(self, telemetry_timeout=0.25, vr_timeout=1.0, *, strategy=DEFAULT_STRATEGY,
+                 resistance_profile=DEFAULT_RESISTANCE_PROFILE):
         if strategy not in STRATEGY_NAMES:
             raise ValueError(f'unknown strategy: {strategy}')
+        if resistance_profile not in RESISTANCE_PROFILES:
+            raise ValueError(f'unknown resistance profile: {resistance_profile}')
         self.timeouts = {'stm32': telemetry_timeout, 'vr': vr_timeout}
         self.latest = {'stm32': None, 'vr': None}
         self.received = {'stm32': None, 'vr': None}
@@ -19,6 +23,7 @@ class BridgeState:
         self._strength = StrengthResponse()
         self._fatigue = FatigueState()
         self._strategy = strategy
+        self._resistance_profile = resistance_profile
         self._match_clock = ActiveMatchClock()
 
     def clear(self, role):
@@ -85,10 +90,11 @@ class BridgeState:
         requested = vr['character_id'] if fresh['vr'] else None
         base_target = requested_target = eligible = target = actual = load_proxy = scale = 0.0
         strategy = 'demo' if character.character_id == 'demo' else self._strategy
+        resistance_profile = DEFAULT_RESISTANCE_PROFILE if strategy == 'demo' else self._resistance_profile
         fatigue_parameters = character.fatigue_parameters
         if reason == 'running':
             brake = brake_state(telemetry['angle_rad'], telemetry['velocity_rad_s'], parameters)
-            base_target = brake.target_torque
+            base_target = profile_target(resistance_profile, brake, parameters)
             self._match_clock.advance(now, StrengthResponse.MAX_CONTINUOUS_GAP_S)
             scale = strategy_scale(strategy, brake.relative_angle, parameters.free_boundary,
                                    self._match_clock.elapsed)
@@ -123,6 +129,7 @@ class BridgeState:
                       q_rad=-telemetry['angle_rad'] if fresh['stm32'] else None,
                       target_torque_nm=target, brake_torque_nm=actual,
                       base_target_torque_nm=base_target,
+                      resistance_profile=resistance_profile,
                       strategy=strategy, strategy_scale=scale,
                       requested_target_torque_nm=requested_target,
                       active_match_time_s=self._match_clock.elapsed,
