@@ -1,4 +1,4 @@
-"""PTY smoke test: actual OS byte stream, V1 handshake, command and watchdog."""
+"""PTY smoke test: actual OS byte stream, V1.1 handshake, command and watchdog."""
 import json
 import os
 from pathlib import Path
@@ -9,7 +9,7 @@ import time
 import unittest
 
 from common.serial_protocol import (
-    FLAG_ARM_READY, FLAG_ACK_VALID, FrameParser, MODE_ENABLE,
+    FLAG_ACK_VALID, FLAG_ARM_READY, FLAG_CMD_TIMEOUT, FrameParser, MODE_ENABLE, MODE_STOP,
     TYPE_SESSION_ACK, TYPE_TELEMETRY, command_frame, decode_payload,
     session_open_frame,
 )
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @unittest.skipUnless(os.name == 'posix', 'PTY simulation requires Linux/Unix')
 class VirtualSerialTests(unittest.TestCase):
-    def test_pty_v1_handshake_command_and_timeout(self):
+    def test_pty_v11_handshake_command_and_timeout(self):
         child = subprocess.Popen(
             [sys.executable, '-u', '-m', 'sim.mock_stm32_serial',
              '--demo-arm', '--duration', '2.4'],
@@ -42,6 +42,7 @@ class VirtualSerialTests(unittest.TestCase):
                                 and decode_payload(frame).session_id == serial_id):
                             acked = True
             self.assertTrue(acked, 'STM32 simulator did not ACK session')
+            os.write(fd, command_frame(0, serial_id, MODE_STOP))
             # Send a live brake magnitude repeatedly, as a PC controller would.
             sent_seq = 1
             accepted = False
@@ -56,7 +57,7 @@ class VirtualSerialTests(unittest.TestCase):
                             telem = decode_payload(frame)
                             if telem.applied_target_mnm == 300:
                                 accepted = True
-            self.assertTrue(accepted, 'V1 command did not reach simulated brake')
+            self.assertTrue(accepted, 'V1.1 command did not reach simulated brake')
             # No new command for >200 ms: the simulated board drops ARM_READY.
             disarmed = False
             deadline = time.monotonic()+.6
@@ -65,9 +66,10 @@ class VirtualSerialTests(unittest.TestCase):
                     for frame in parser.feed(os.read(fd, 4096)):
                         if frame.kind == TYPE_TELEMETRY:
                             telem = decode_payload(frame)
-                            if not (telem.status_flags & FLAG_ARM_READY):
+                            if telem.status_flags & FLAG_CMD_TIMEOUT:
                                 disarmed = True
-                                self.assertEqual(telem.applied_target_mnm, 0)
+                                self.assertEqual((telem.session_id, telem.applied_target_mnm), (0, 0))
+                                self.assertFalse(telem.status_flags & (FLAG_ARM_READY | FLAG_ACK_VALID))
             self.assertTrue(disarmed, 'local command watchdog did not disarm')
         finally:
             if fd is not None:

@@ -29,10 +29,10 @@ EVENTS = {'listening': '通信入口已启动', 'connected': '通信对端已连
           'closed': '程序已停止', 'serial_open': 'PC 串口已打开，等待 V1 握手',
           'serial_unavailable': '串口暂不可用，正在重试', 'serial_error': '串口异常，正在重连',
           'serial_timeout': '串口数据超时，重新建立会话',
-          'serial_session_ready': 'V1 会话握手已确认',
+          'serial_session_ready': 'V1.1 会话握手已确认',
           'virtual_serial_ready': '模拟串口已打开，等待 PC',
           'vr_connected': 'Unity UDP 会话已连接', 'invalid_vr_packet': '忽略无效 Unity 消息',
-          'session_open': 'V1 会话握手已响应', 'command_timeout': '指令看门狗已停止模拟制动'}
+          'session_open': 'V1.1 会话握手已响应', 'command_timeout': '指令看门狗已停止模拟制动'}
 
 
 def safe(value):
@@ -67,9 +67,9 @@ def operator_lines(role, message, info=None, events=()):
              f"刷新时间：{time.strftime('%H:%M:%S')} | 已运行：{number(message.get('elapsed_s'), 1)} s", '=' * 48,
              f'当前状态：[{badge}] {summary}', f'操作提示：{action}', '']
     if info.get('port'):
-        lines.append(f"下位机链路：串口 V1 / {safe(info['port'])} / {info.get('baudrate', 115200)} / 8N1")
+        lines.append(f"下位机链路：串口 V1.1 / {safe(info['port'])} / {info.get('baudrate', 115200)} / 8N1")
     elif message.get('type') == 'stm32_serial_snapshot':
-        lines.append('下位机链路：串口 V1（端口待确认）')
+        lines.append('下位机链路：串口 V1.1（端口待确认）')
     elif info.get('stm_port') or info.get('stm_transport') == 'tcp' or device:
         lines.append(f"下位机链路：TCP 模拟 / 127.0.0.1:{info.get('stm_port', 9101)}")
     if device:
@@ -80,7 +80,7 @@ def operator_lines(role, message, info=None, events=()):
             'sequence': '本窗口在收到首条有效 ENABLE 后播放施力序列。',
         }.get(input_mode, '本窗口是软件模拟设备。模拟人周期性下压、回推、松手。'))
         if 'session_ready' in message:
-            lines.append('V1 会话：' + ('已建立' if message['session_ready'] else '等待握手')
+            lines.append('V1.1 会话：' + ('已建立' if message['session_ready'] else '等待握手')
                          + ' | 模拟许可：' + ('已授权' if message.get('armed') else '未授权'))
             lines.append(f"有效指令：{message.get('accepted_commands', 0)} 条 | 最近指令序号：{message.get('last_command_seq', '--')}")
     else:
@@ -101,8 +101,13 @@ def operator_lines(role, message, info=None, events=()):
             elif message.get('character_selection_deferred'):
                 lines.append('人物提示：本回合保持原人物；请在 waiting/paused/finished 确认新人物')
         if 'serial_session_ready' in message:
-            lines.append('V1 会话：' + ('已确认' if message['serial_session_ready'] else '等待确认')
+            lines.append('V1.1 会话：' + ('已确认' if message['serial_session_ready'] else '等待确认')
                          + ' | 本地使能许可：' + ('已获得' if message.get('serial_arm_ready') else '未获得'))
+        if 'serial_session_confirmed' in message:
+            lines.append('当前会话 STOP：' + ('已确认' if message['serial_session_confirmed'] else '等待确认')
+                         + ' | MCU 采样：' + number(message.get('serial_mcu_sample_ms'), 0) + ' ms')
+            lines.append('串口诊断：' + safe(message.get('serial_status_reason', '--'))
+                         + ' | ACK 距更新：' + number(message.get('serial_ack_progress_age_ms'), 0) + ' ms')
     angle = message.get('angle_rad')
     if angle is None or message.get('telemetry_fresh') is False:
         lines.append('机械角度：无有效数据（不会当作 0°）')

@@ -1,18 +1,16 @@
 # PC 串口入口
 
-`run.py` 是 PC 侧的 STM32 V1 串口＋VR UDP 程序。`stm32_link.py` 负责字节收发、会话握手和遥测解析，控制算法仍在 `common/control.py`。
+`real.run` 使用 [STM32 串口 V1.1](../docs/stm32-serial-v11.md) 和 VR UDP V0.1。帧解析、会话、角度采样有效性与 ACK 进度由 `stm32_link.py` 管理，现有阻力控制算法仍由 `common.state` 和 `common.control` 执行。
 
-在仓库根目录安装 `pyserial`，然后指定 PC 要打开的端口：
+首次接板前物理隔离制动器励磁功率，设备旁无人接触。可使用 [STM32 联调面板](../docs/stm32-debug-panel-v01.md)，或在隔离的 UDP 端口启动仅 STOP 检查。COM9 需换成实际端口。
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install pyserial==3.5
-.\.venv\Scripts\python.exe -m real.run --port COM1
+.\.venv\Scripts\python.exe -m pip install pyserial
+.\.venv\Scripts\python.exe -m real.run --port COM9 --vr-port 19102 --monitor-only --log-file pc.jsonl --experiment-log experiment.jsonl
 ```
 
-Windows 软件联调已使用 COM1 ↔ COM2 虚拟串口对，另一端运行 `sim.mock_stm32_serial --port COM2 --demo-arm`。VR 仍通过 UDP `127.0.0.1:9102` 与 PC 通信。`common.bridge` 是另一种 PC 入口，两者不能同时占用 UDP 9102。
+握手在 COM 保持打开时重试。板端遥测确认当前会话并回报本会话的 STOP，随后核对角度采样和本地授权。实验日志可选，记录已解析的逐条遥测及完整写出的指令。PC 单调时间和 MCU 采样毫秒分列。
 
-接实体设备时换成实际端口，并与下位机组核对 V1 固件状态机、本地使能、故障保护及标定。仓库没有 STM32 固件，实体设备尚未联调。
+正式 VR 使用默认 UDP `127.0.0.1:9102`，PC 与 `common.bridge` 只能选一个占用该端口。启动或通信、采样、设备许可中断之后，由 VR 重新发送 `waiting` 或 `paused`，再由操作员明确开始或继续。固件按本地规则独立保证授权和保护。
 
-首次接板先不接制动器励磁功率或人手，只验证握手与遥测。无 VR 时 PC 仍会在握手后发送 STOP/0，并非只读监视器；ARM_READY=0 导致的 device_fault 不等于通信失败。隔离步骤、日志判断和独立验收见 [真实联调最小流程](../docs/real-vr-stm32-integration-v01.md)。不要把虚拟 COM 检查脚本的端口直接改为实板，它会发送非零 ENABLE。
-
-完整启动和验收步骤见 [项目 README](../README.md)、[Windows 串口说明](../docs/windows-serial-operator-guide.md)；线协议见 [STM32 V1](../docs/stm32-serial-v1.md)。
+[板端 C 参考](../firmware_reference/stm32_v11/README.md) · [首次接板流程](../docs/real-vr-stm32-integration-v01.md) · [Windows 虚拟 COM 验收](../docs/stm32-serial-v11-windows.md)

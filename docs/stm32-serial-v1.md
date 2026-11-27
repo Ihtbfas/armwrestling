@@ -1,5 +1,7 @@
 # STM32F405RGT6 ↔ PC 串口协议 V1（供下位机组确认）
 
+> V1 历史草案。当前 PC 和首次下位机交接使用 [V1.1](stm32-serial-v11.md)。
+
 > 状态：**V1 修订草案，等待 STM32 组确认后冻结。** PC 的 `real.run` / `real.stm32_link` 已实现 COM 串口、会话握手与遥测接入，并完成 Windows 软件虚拟 COM 验证；尚无实体 STM32 或固件联调结果。组内确认后再以 V1 作为双方唯一依据。`common/serial_protocol.py` 是只依赖标准库的编码、解析参考，打开 COM 时由 `real/` 使用 pyserial。首次接板步骤见 [真实联调准备](real-vr-stm32-integration-v01.md)。本次只更新实现状态说明，V1 字节格式及语义不变。
 
 ## 1. 为什么采用这套协议

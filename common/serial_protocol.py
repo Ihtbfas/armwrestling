@@ -1,4 +1,4 @@
-"""STM32 <-> PC serial wire protocol V1; Python standard library only.
+"""STM32 <-> PC serial wire protocol V1.1; Python standard library only.
 
 These bytes can travel over USART+USB-serial or USB CDC. This module
 only handles framing/payloads; it does not open hardware ports.
@@ -10,8 +10,8 @@ import struct
 import time
 
 SYNC = b'\xA5\x5A'
-VERSION = 1
-MAX_PAYLOAD = 32
+VERSION = 2
+MAX_PAYLOAD = 64
 TYPE_TELEMETRY = 1
 TYPE_BRAKE_COMMAND = 2
 TYPE_SESSION_OPEN = 3
@@ -25,8 +25,12 @@ FLAG_LIMIT = 1 << 3
 FLAG_ACK_VALID = 1 << 4
 FLAG_FORCE_VALID = 1 << 5
 FLAG_ARM_READY = 1 << 6  # Local operator re-arm completed; not a PC command.
+FLAG_ANGLE_VALID = 1 << 7
+FLAG_VEL_VALID = 1 << 8
+FLAG_CMD_TIMEOUT = 1 << 9
+KNOWN_FLAGS = 0x03FF
 _HEADER = struct.Struct('<BBHB')  # version, kind, sequence, payload length
-_TELEMETRY = struct.Struct('<iiiHHH')  # angle, speed, measured force, status, ack, setpoint
+_TELEMETRY = struct.Struct('<iiiHHHIQ')  # angle, speed, force, flags, ack, target, sample, session
 _COMMAND = struct.Struct('<QBHH')  # session, mode, magnitude, lifetime
 _SESSION = struct.Struct('<Q')  # uint64 session id, chosen fresh by the PC
 _PAYLOAD_SIZES = {
@@ -50,6 +54,8 @@ class Telemetry:
     status_flags: int
     last_command_seq: int
     applied_target_mnm: int
+    mcu_sample_ms: int
+    session_id: int
 
     @property
     def angle_rad(self):
@@ -65,16 +71,10 @@ class Telemetry:
 
     @property
     def can_enable(self):
-        # READY alone is not an operator's permission to re-arm a device.
-        return (self.status_flags & (FLAG_READY | FLAG_ARM_READY)
-                == FLAG_READY | FLAG_ARM_READY
-                and not self.status_flags & (FLAG_FAULT | FLAG_ESTOP | FLAG_LIMIT | ~0x7F))
+        required = FLAG_READY | FLAG_ARM_READY | FLAG_ANGLE_VALID
+        blocked = FLAG_FAULT | FLAG_ESTOP | FLAG_LIMIT | FLAG_CMD_TIMEOUT | ~KNOWN_FLAGS
+        return self.status_flags & required == required and not self.status_flags & blocked
 
-    @property
-    def device_status(self):
-        if self.status_flags & (FLAG_FAULT | FLAG_ESTOP | FLAG_LIMIT | ~0x7F):
-            return 'fault'
-        return 'ready' if self.status_flags & FLAG_READY else 'fault'
 
 @dataclass(frozen=True)
 class BrakeCommand:
@@ -109,8 +109,8 @@ def crc16(data):
 def encode_frame(kind, sequence, payload):
     _uint(kind, 255, 'kind')
     _uint(sequence, 65535, 'sequence')
-    if not isinstance(payload, bytes) or len(payload) > MAX_PAYLOAD:
-        raise ValueError('payload must be bytes with length <= 32')
+    if not isinstance(payload, bytes) or _PAYLOAD_SIZES.get(kind) != len(payload):
+        raise ValueError('invalid message type or payload size')
     content = _HEADER.pack(VERSION, kind, sequence, len(payload)) + payload
     return SYNC + content + struct.pack('<H', crc16(content))
 
@@ -126,27 +126,37 @@ def decode_frame(packet):
     return Frame(kind, sequence, packet[7:-2])
 
 def telemetry_frame(sequence, angle_mrad, velocity_mrad_s, sensor_force_mn, status_flags,
-                    last_command_seq=0, applied_target_mnm=0):
+                    last_command_seq=0, applied_target_mnm=0, *, mcu_sample_ms, session_id):
+    if session_id == 0 and (status_flags & FLAG_ACK_VALID or applied_target_mnm):
+        raise ValueError('unpaired telemetry cannot acknowledge or report a nonzero target')
     payload = _TELEMETRY.pack(_int32(angle_mrad, 'angle_mrad'),
                               _int32(velocity_mrad_s, 'velocity_mrad_s'),
                               _int32(sensor_force_mn, 'sensor_force_mn'),
                               _uint(status_flags, 65535, 'status_flags'),
                               _uint(last_command_seq, 65535, 'last_command_seq'),
-                              _uint(applied_target_mnm, 65535, 'applied_target_mnm'))
+                              _uint(applied_target_mnm, 65535, 'applied_target_mnm'),
+                              _uint(mcu_sample_ms, 2**32-1, 'mcu_sample_ms'),
+                              _uint(session_id, 2**64-1, 'session_id'))
     return encode_frame(TYPE_TELEMETRY, sequence, payload)
+
+def _nonzero_session(session_id):
+    if not _uint(session_id, 2**64-1, 'session_id'):
+        raise ValueError('session_id must be nonzero')
+    return session_id
+
 
 def session_open_frame(sequence, session_id):
     return encode_frame(TYPE_SESSION_OPEN, sequence,
-                        _SESSION.pack(_uint(session_id, 2**64-1, 'session_id')))
+                        _SESSION.pack(_nonzero_session(session_id)))
 
 
 def session_ack_frame(sequence, session_id):
     return encode_frame(TYPE_SESSION_ACK, sequence,
-                        _SESSION.pack(_uint(session_id, 2**64-1, 'session_id')))
+                        _SESSION.pack(_nonzero_session(session_id)))
 
 
 def command_frame(sequence, session_id, mode, target_torque_mnm=0, valid_for_ms=200):
-    _uint(session_id, 2**64-1, 'session_id')
+    _nonzero_session(session_id)
     _uint(mode, 1, 'mode')
     _uint(target_torque_mnm, 65535, 'target_torque_mnm')
     if type(valid_for_ms) is not int or not 20 <= valid_for_ms <= 500:
@@ -159,16 +169,17 @@ def command_frame(sequence, session_id, mode, target_torque_mnm=0, valid_for_ms=
 def decode_payload(frame):
     if frame.kind == TYPE_TELEMETRY:
         if len(frame.payload) != _TELEMETRY.size:
-            raise ValueError('telemetry payload must be 18 bytes')
+            raise ValueError('telemetry payload must be 30 bytes')
         return Telemetry(*_TELEMETRY.unpack(frame.payload))
     if frame.kind in (TYPE_SESSION_OPEN, TYPE_SESSION_ACK):
         if len(frame.payload) != _SESSION.size:
             raise ValueError('session payload must be 8 bytes')
-        return SessionMessage(*_SESSION.unpack(frame.payload))
+        return SessionMessage(_nonzero_session(_SESSION.unpack(frame.payload)[0]))
     if frame.kind == TYPE_BRAKE_COMMAND:
         if len(frame.payload) != _COMMAND.size:
             raise ValueError('brake command payload must be 13 bytes')
         cmd = BrakeCommand(*_COMMAND.unpack(frame.payload))
+        _nonzero_session(cmd.session_id)
         if cmd.mode not in (MODE_STOP, MODE_ENABLE) or not 20 <= cmd.valid_for_ms <= 500:
             raise ValueError('invalid brake command')
         if cmd.mode == MODE_STOP and cmd.target_torque_mnm != 0:
@@ -185,6 +196,11 @@ def is_new_sequence(value, previous):
     difference = (value - previous) & 0xFFFF
     return 0 < difference < 0x8000
 
+def sample_delta_ms(value, previous):
+    """Signed modular difference for a uint32 MCU sample clock."""
+    return ((value - previous + 0x80000000) & 0xFFFFFFFF) - 0x80000000
+
+
 class FrameParser:
     """CRC-checked byte-stream parser with early header checks and frame timeout."""
 
@@ -194,6 +210,7 @@ class FrameParser:
         self.buffer = bytearray()
         self.assembly_timeout_s = assembly_timeout_s
         self.started_at = None
+        self.crc_errors = self.header_errors = self.timeouts = 0
 
     def expire(self, now=None):
         """Call periodically even without incoming bytes; discard stalled fragments."""
@@ -202,6 +219,7 @@ class FrameParser:
                 and now - self.started_at >= self.assembly_timeout_s):
             self.buffer.clear()
             self.started_at = None
+            self.timeouts += 1
             return True
         return False
 
@@ -216,7 +234,10 @@ class FrameParser:
             start = self.buffer.find(SYNC)
             if start < 0:
                 self.buffer = bytearray(b'\xA5') if self.buffer.endswith(b'\xA5') else bytearray()
-                self.started_at = now if self.buffer else None
+                if not self.buffer:
+                    self.started_at = None
+                elif self.started_at is None:
+                    self.started_at = now
                 break
             if start:
                 del self.buffer[:start]
@@ -228,6 +249,7 @@ class FrameParser:
             version, kind, _sequence, length = _HEADER.unpack(self.buffer[2:7])
             # A corrupted length must not block a valid frame after it.
             if version != VERSION or _PAYLOAD_SIZES.get(kind) != length:
+                self.header_errors += 1
                 del self.buffer[0]
                 self.started_at = None
                 continue
@@ -237,6 +259,7 @@ class FrameParser:
             try:
                 frame = decode_frame(bytes(self.buffer[:packet_length]))
             except ValueError:
+                self.crc_errors += 1
                 del self.buffer[0]
                 self.started_at = None
                 continue

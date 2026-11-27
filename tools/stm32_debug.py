@@ -1,4 +1,4 @@
-"""Windows Tk panel for the existing STM32 V1 PC backend."""
+"""Windows Tk panel for the STM32 V1.1 PC backend."""
 import json
 import math
 import os
@@ -17,8 +17,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from common.characters import CHARACTERS
 from common.protocol import MAX_LINE, decode_datagram, encode_datagram
 from common.serial_protocol import (
-    FLAG_ACK_VALID, FLAG_ARM_READY, FLAG_ESTOP, FLAG_FAULT, FLAG_FORCE_VALID,
-    FLAG_LIMIT, FLAG_READY,
+    FLAG_ACK_VALID, FLAG_ANGLE_VALID, FLAG_ARM_READY, FLAG_CMD_TIMEOUT, FLAG_ESTOP,
+    FLAG_FAULT, FLAG_FORCE_VALID, FLAG_LIMIT, FLAG_READY, FLAG_VEL_VALID,
 )
 from common.strategies import STRATEGY_NAMES
 
@@ -36,16 +36,32 @@ STOP_REASONS = dict(
     debug_resume_required='等待准备或暂停状态确认',
 )
 FLAGS = (
-    (FLAG_READY, 'READY 设备就绪'), (FLAG_ARM_READY, 'ARM_READY 本地许可'),
-    (FLAG_FAULT, 'FAULT 故障'), (FLAG_ESTOP, 'ESTOP 急停'),
-    (FLAG_LIMIT, 'LIMIT 限位'), (FLAG_ACK_VALID, 'ACK_VALID 确认有效'),
-    (FLAG_FORCE_VALID, 'FORCE_VALID 测力有效'),
+    (FLAG_READY, 'READY'), (FLAG_ARM_READY, 'ARM_READY'), (FLAG_FAULT, 'FAULT'),
+    (FLAG_ESTOP, 'ESTOP'), (FLAG_LIMIT, 'LIMIT'), (FLAG_CMD_TIMEOUT, 'CMD_TIMEOUT'),
+    (FLAG_ANGLE_VALID, 'ANGLE_VALID'), (FLAG_VEL_VALID, 'VEL_VALID'),
+    (FLAG_FORCE_VALID, 'FORCE_VALID'), (FLAG_ACK_VALID, 'ACK_VALID'),
+)
+KNOWN_FLAGS = sum(bit for bit, _ in FLAGS)
+SAMPLE_STATES = dict(advancing='在更新', repeated='时间戳重复', backwards='时间戳倒退',
+                     unavailable='待采样')
+SERIAL_REASONS = dict(
+    waiting_handshake='等待会话握手', waiting_stop_ack='等待 STOP 确认',
+    telemetry_timeout='遥测超时', angle_invalid='角度无效（检查采集和零位）',
+    sample_stale='角度采样停滞', sample_backwards='MCU 采样时间戳倒退',
+    unarmed='等待下位机本地许可', device_fault='下位机报告故障',
+    estop='下位机报告急停', limit='下位机报告行程越限', not_ready='设备尚未就绪',
+    command_timeout='下位机命令看门狗超时', unknown_flags='下位机状态含未知位',
+    session_mismatch='遥测会话已变化（板端复位或失去会话）',
+    ack_timeout='命令 ACK 进度超时', serial_error='串口发送或接收失败',
 )
 EVENTS = dict(
     listening='PC 后端已启动', serial_open='串口已打开',
     serial_unavailable='无法打开串口（检查占用、端口和驱动）', serial_error='串口收发失败',
     serial_timeout='遥测超时，PC 重新等待串口会话',
     serial_session_ready='SESSION_ACK 匹配', serial_session_ack='SESSION_ACK 匹配',
+    serial_stop_confirmed='下位机已确认本会话的 STOP',
+    serial_session_restart='串口会话失效，重新握手',
+    experiment_log_incomplete='实验日志不完整，查看丢记录计数',
     vr_connected='模拟 VR 已连接', closed='PC 后端已停止',
     debug_interlock='设备或通信中断，需手动继续',
     backend_output='PC 后端输出',
@@ -56,9 +72,25 @@ def format_number(value, unit, digits=3):
     return '—' if value is None else f'{value:.{digits}f} {unit}'
 
 
+def format_flags(flags):
+    if flags is None:
+        return '—'
+    bits = ' · '.join(f'{label}={int(bool(flags & bit))}' for bit, label in FLAGS)
+    unknown = flags & ~KNOWN_FLAGS
+    return f'0x{flags:04X}  {bits}' + (f' · 未知 0x{unknown:04X}' if unknown else '')
+
+
+def format_peer_session(peer):
+    if peer is None:
+        return '—'
+    if peer in (0, '0x0', '0x0000000000000000'):
+        return '设备未建会话'
+    return f'0x{peer:016X}' if isinstance(peer, int) else peer
+
+
 class Backend:
     """Own one real.run subprocess and, in match mode, one UDP socket."""
-    def __init__(self, port, baudrate, strategy, udp_port, match):
+    def __init__(self, port, baudrate, strategy, udp_port, match, experiment=False):
         self.records = queue.Queue(maxsize=128)
         self.log_dir = Path(tempfile.mkdtemp(prefix='armwrestling-stm32-'))
         self.address = ('127.0.0.1', udp_port)
@@ -68,7 +100,8 @@ class Backend:
         self.closed_at = None
         self.started = time.monotonic()
         self.log('connect_requested', tool_version='0.1', port=port, baudrate=baudrate,
-                 serial_format='8N1', strategy=strategy, udp_port=udp_port, match=match,
+                 serial_format='8N1', serial_protocol='1.1', strategy=strategy, udp_port=udp_port,
+                 match=match, experiment_log=experiment,
                  started_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'))
         args = [
             sys.executable, '-m', 'real.run', '--port', port, '--baudrate', str(baudrate),
@@ -76,6 +109,8 @@ class Backend:
             '--display', 'json', '--log-file', str(self.log_dir / 'pc.jsonl'),
             '--diagnostic-interval', '0.2', '--exit-on-stdin-eof',
         ]
+        if experiment:
+            args += ['--experiment-log', str(self.log_dir / 'experiment.jsonl')]
         try:
             if match:
                 self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -182,6 +217,7 @@ class DebugPanel:
         self.udp_port = tk.StringVar(value='19102')
         self.role = tk.StringVar(value='person_02')
         self.strategy = tk.StringVar(value='balanced')
+        self.experiment = tk.BooleanVar(value=False)
         self.profile = tk.StringVar()
         self.hint = tk.StringVar()
         self.values = {}
@@ -196,8 +232,8 @@ class DebugPanel:
 
     def build(self):
         root = self.root
-        root.title('扳手腕 · STM32 联调工具 V0.1')
-        root.geometry('1100x810')
+        root.title('扳手腕 · STM32 联调工具（串口 V1.1）')
+        root.geometry('1100x850')
         root.minsize(980, 700)
         font = ('Microsoft YaHei UI', -16)
         root.option_add('*Font', font)
@@ -243,6 +279,8 @@ class DebugPanel:
         ttk.Label(modes, text='本地 UDP 127.0.0.1').pack(side='left', padx=(4, 4))
         self.udp_box = ttk.Entry(modes, textvariable=self.udp_port, width=7)
         self.udp_box.pack(side='left')
+        self.experiment_box = ttk.Checkbutton(modes, text='记录逐帧实验日志', variable=self.experiment)
+        self.experiment_box.pack(side='right')
 
         match = ttk.LabelFrame(body, text='模拟比赛', padding=8)
         match.pack(fill='x', pady=(0, 6))
@@ -275,16 +313,17 @@ class DebugPanel:
         diagnostics = ttk.Frame(body)
         diagnostics.pack(fill='x', pady=(0, 6))
         diagnostics.columnconfigure((0, 1), weight=1, uniform='diagnostics')
-        self.card(diagnostics, 0, '设备与串口 V1', (
-            ('com', '串口'), ('handshake', 'SESSION_OPEN / ACK'), ('telemetry', '遥测'),
-            ('arm', '本地使能'), ('flags', '状态位'), ('angle', '机械角度'),
-            ('speed', '角速度'), ('force', '测力'),
+        self.card(diagnostics, 0, '设备与串口 V1.1', (
+            ('com', '串口'), ('handshake', '握手 / STOP 确认'), ('peer', '遥测会话'),
+            ('telemetry', '串口遥测'), ('sample', 'MCU 角度采样'), ('arm', '本地授权'),
+            ('flags', '状态位'), ('angle', '机械角度'), ('speed', '角速度'), ('force', '测力'),
         ))
         self.card(diagnostics, 1, '比赛与阻力指令', (
             ('phase', '面板请求 / PC 回报'), ('character', '请求 / 生效人物'),
             ('strategy', '启动 / 生效策略'), ('reason', '控制状态'), ('fatigue', '等效疲劳'),
             ('target', 'PC 计算目标'), ('sent', 'PC 最近完整写出'),
             ('ack', 'STM32 已接收序号'), ('applied', 'STM32 回报目标'),
+            ('errors', '丢帧诊断'), ('log', '逐帧日志'),
         ))
 
         event_header = ttk.Frame(body)
@@ -365,6 +404,7 @@ class DebugPanel:
         try:
             self.backend = self.last_backend = Backend(
                 self.ports[self.port.get()], baud, self.strategy.get(), udp, self.mode.get() == 'match',
+                experiment=self.experiment.get(),
             )
         except OSError as error:
             self.failure = f'无法启动 PC 后端：{error}'
@@ -381,7 +421,8 @@ class DebugPanel:
             and self.status_at is not None and now - self.status_at < STATUS_TIMEOUT_S
             and backend.last_reply is not None and now - backend.last_reply < STATUS_TIMEOUT_S
             and self.status.get('serial_open') and self.status.get('serial_session_ready')
-            and self.status.get('telemetry_fresh') and self.status.get('serial_arm_ready')
+            and self.status.get('serial_session_confirmed')
+            and self.status.get('telemetry_fresh') and self.status.get('serial_enable_ready')
             and self.status.get('vr_fresh')
         )
 
@@ -454,6 +495,9 @@ class DebugPanel:
                 if event == 'serial_timeout':
                     self.opened = False
                 detail = record.get('error') or record.get('detail') or ''
+                if not detail and event in ('debug_interlock', 'serial_session_restart'):
+                    reason = record.get('reason', '')
+                    detail = SERIAL_REASONS.get(reason, STOP_REASONS.get(reason, reason))
                 message = EVENTS.get(event, event)
                 message = f'{message} {detail}'.strip()
                 if event in ('serial_unavailable', 'serial_error', 'backend_output'):
@@ -510,7 +554,7 @@ class DebugPanel:
         connected = self.backend is not None
         match = self.mode.get() == 'match'
         self.port_box.configure(state='disabled' if connected else 'readonly')
-        for control in (self.refresh, self.baud_box, self.udp_box, self.monitor_button,
+        for control in (self.refresh, self.baud_box, self.udp_box, self.experiment_box, self.monitor_button,
                         self.match_button, self.connect_button):
             control.configure(state='disabled' if connected else 'normal')
         self.disconnect_button.configure(state='normal' if connected and not self.closing else 'disabled')
@@ -537,51 +581,111 @@ class DebugPanel:
         fresh_status = self.status_at is not None and now - self.status_at < STATUS_TIMEOUT_S
         status = self.status if fresh_status else {}
         serial_open = status.get('serial_open', self.opened and self.status_at is None)
-        fresh = status.get('telemetry_fresh')
-        flags = status.get('serial_status_flags') if fresh else None
-        armed = status.get('serial_arm_ready') if fresh else None
+        wire_fresh = status.get('serial_wire_fresh')
+        control_fresh = status.get('telemetry_fresh')
+        flags = status.get('serial_status_flags') if wire_fresh else None
+        armed = bool(flags & FLAG_ARM_READY) if flags is not None else None
+        handshake = status.get('serial_session_ready')
+        confirmed = status.get('serial_session_confirmed')
         session = status.get('serial_session_id')
-        ack = status.get('serial_last_ack_seq') if fresh else None
-        applied = status.get('serial_applied_target_nm') if fresh else None
+        peer = status.get('serial_peer_session_id') if wire_fresh else None
+        matched = wire_fresh and handshake and session is not None and peer == session
+        ack = status.get('serial_last_ack_seq') if matched and flags is not None and flags & FLAG_ACK_VALID else None
+        ack_age = status.get('serial_ack_progress_age_ms')
+        applied = status.get('serial_applied_target_nm') if wire_fresh else None
         sent = status.get('serial_last_sent')
-        angle = status.get('angle_rad') if fresh else None
-        speed = status.get('velocity_rad_s') if fresh else None
+        angle = status.get('angle_rad') if control_fresh else None
+        raw_angle = status.get('serial_raw_angle_rad') if wire_fresh else None
+        speed = status.get('velocity_rad_s') if control_fresh else None
+        raw_speed = status.get('serial_raw_velocity_rad_s') if wire_fresh else None
+        angle_valid = flags is not None and flags & FLAG_ANGLE_VALID
+        speed_valid = flags is not None and flags & FLAG_VEL_VALID
         fatigue = status.get('fatigue_level')
         target = status.get('target_torque_nm')
         reason = status.get('reason')
-        age = status.get('telemetry_age_ms')
+        serial_reason = status.get('serial_status_reason')
+        age = status.get('serial_wire_age_ms')
         rate = status.get('serial_telemetry_rate_hz')
-        telemetry = f'有效 · {format_number(rate, "Hz", 1)} · {format_number(age, "ms", 0)} 前'
-        if not fresh:
-            telemetry = '读数失效' if self.status_at is not None else '等待读数'
+        if wire_fresh:
+            telemetry = f'有数据 · {format_number(rate, "Hz", 1)}'
+            if age is not None:
+                telemetry += f' · {age:.0f} ms 前'
+        else:
+            telemetry = f'已过期 · {age:.0f} ms 前' if age is not None else '等待读数'
+        sample_ms = status.get('serial_mcu_sample_ms') if wire_fresh else None
+        sample_state = SAMPLE_STATES.get(status.get('serial_sample_state'), '待采样')
+        sample_age = status.get('serial_sample_age_ms')
+        sample = '—' if sample_ms is None else f'{sample_ms} ms · {sample_state}'
+        if sample_ms is not None and sample_age is not None:
+            sample += f' · 距末次新采样 {sample_age:.0f} ms'
+        angle_text = '—'
+        if angle is not None:
+            angle_text = f'{angle:.4f} rad / {math.degrees(angle):.2f}°（负角获胜）'
+        elif raw_angle is not None:
+            validity = '无效' if not angle_valid else '仅诊断'
+            if serial_reason in ('sample_stale', 'sample_backwards'):
+                validity = '采样无效'
+            angle_text = f'原始 {raw_angle:.4f} rad（{validity}）'
+        speed_text = '未提供' if wire_fresh else '—'
+        if speed is not None and speed_valid:
+            speed_text = f'{speed:.3f} rad/s / {math.degrees(speed):.1f}°/s'
+        elif speed_valid and raw_speed is not None:
+            speed_text = f'{raw_speed:.3f} rad/s（仅诊断）'
+        ack_text = f'#{ack}' if ack is not None else ('等待有效 ACK' if matched else '—')
+        if matched and status.get('serial_ack_pending') and ack_age is not None:
+            ack_text += f' · 距确认进度 {ack_age:.0f} ms'
+        errors = ' · '.join(f'{name} {value}' for name, value in (
+            ('CRC', status.get('serial_crc_errors')),
+            ('帧头', status.get('serial_header_errors')),
+            ('序号', status.get('serial_sequence_drops')),
+            ('组帧超时', status.get('serial_frame_timeouts')),
+        ) if value is not None)
+        dropped = status.get('serial_experiment_dropped')
+        trace_error = status.get('serial_experiment_error')
+        experiment_text = '关闭'
+        if self.experiment.get():
+            experiment_text = f'记录中 · 丢记录 {dropped}' if connected and dropped is not None else '已选择'
+        local_reason = SERIAL_REASONS.get(serial_reason)
+        control_reason = '—'
+        if status.get('monitor_only'):
+            control_reason = 'STOP · 通信检查'
+        elif status.get('mode') == 'enabled':
+            control_reason = 'ENABLE · 正常计算'
+        elif reason:
+            control_reason = f'STOP · {local_reason or STOP_REASONS.get(reason, reason)}'
+        handshake_text = '等待匹配'
+        if handshake:
+            handshake_text = f'已匹配 · {"STOP 已确认" if confirmed else "等待 STOP 确认"}'
+        if session is not None:
+            handshake_text += f'\nPC {session}'
         rendered = dict(
             com='已打开' if serial_open else '未打开',
-            handshake=f'已匹配 · {session}' if status.get('serial_session_ready') else '等待匹配',
-            telemetry=telemetry,
-            arm=('已获许可' if armed else '当前不允许使能') if fresh else '—',
-            flags='—' if flags is None else f'0x{flags:04X}  ' +
-                ' · '.join(f'{label}={int(bool(flags & bit))}' for bit, label in FLAGS),
-            angle='—' if angle is None else f'{angle:.4f} rad / {math.degrees(angle):.2f}°（负角获胜）',
-            speed='—' if speed is None else f'{speed:.3f} rad/s / {math.degrees(speed):.1f}°/s',
-            force=format_number(status.get('serial_force_n'), 'N') if fresh and flags is not None
-                and flags & FLAG_FORCE_VALID else ('未提供' if fresh else '—'),
+            handshake=handshake_text if serial_open else '—', peer=format_peer_session(peer),
+            telemetry=telemetry, sample=sample,
+            arm=('已获许可' if armed else '未获本地许可') if armed is not None else '—',
+            flags=format_flags(flags), angle=angle_text, speed=speed_text,
+            force=format_number(status.get('serial_force_n'), 'N') if flags is not None
+                and flags & FLAG_FORCE_VALID else ('未提供' if wire_fresh else '—'),
             phase=f'{MATCH_LABELS[self.phase]} / {MATCH_LABELS.get(status.get("match_state"), "—")}' if
                 match and connected else '通信检查 · 不发送比赛状态' if not match else '—',
             character=f'{self.role.get()} / {status.get("active_character_id") or "—"}' if match else '—',
             strategy=f'{STRATEGY_LABELS[self.strategy.get()]} / '
                      f'{STRATEGY_LABELS.get(status.get("strategy"), status.get("strategy") or "—")}'
                      if match else '—',
-            reason=('STOP · 通信检查' if status.get('monitor_only') else
-                    f'{"ENABLE" if status["mode"] == "enabled" else "STOP"} · {STOP_REASONS.get(reason, reason)}') if reason else '—',
+            reason=control_reason,
             fatigue='—' if fatigue is None else f'{fatigue:.1%}',
             target=format_number(target, 'N·m'),
             sent=f'{sent["mode"]} · {sent["target_mnm"]} mN·m · #{sent["seq"]} · 有效 {sent["valid_for_ms"]} ms'
                  if sent else '—',
-            ack=f'#{ack}' if ack is not None else ('等待有效 ACK' if fresh else '—'),
-            applied=f'{applied:.3f} N·m（目标回报）' if applied is not None else '—',
+            ack=ack_text,
+            applied=f'{applied:.3f} N·m' + ('（仅诊断）' if not matched else '')
+                    if applied is not None else '—',
+            errors=errors or '—', log=experiment_text,
         )
         if not serial_open:
             rendered['sent'] = '—'
+        if trace_error:
+            rendered['log'] = '记录写入失败，查看导出日志'
         for key, value in rendered.items():
             self.values[key].set(value)
 
@@ -594,13 +698,18 @@ class DebugPanel:
                     else '模拟比赛可能产生非零目标。首次接板先隔离励磁功率，设备旁无人接触。')
         elif not serial_open:
             hint = '等待打开串口。检查 COM 号、驱动和端口是否被占用。'
-        elif not status.get('serial_session_ready'):
-            hint = '等待匹配的 SESSION_ACK。检查端口是设备侧对端、波特率和固件 V1。'
-        elif not fresh:
-            hint = '握手已完成，等待有效遥测。'
-        elif flags is not None and (flags & (FLAG_FAULT | FLAG_ESTOP | FLAG_LIMIT | ~0x7f)
-                                    or not flags & FLAG_READY):
-            hint = '设备状态异常。查看状态位，正常阻力已停止。'
+        elif serial_reason in ('ack_timeout', 'command_timeout', 'device_fault', 'estop', 'limit',
+                               'unknown_flags', 'serial_error'):
+            hint = f'{local_reason}。已停止正常阻力请求。'
+        elif not handshake:
+            hint = ('已收到诊断遥测，等待匹配的 SESSION_ACK。' if wire_fresh else
+                    '等待匹配的 SESSION_ACK。检查端口、波特率和固件 V1.1。')
+        elif not confirmed:
+            hint = '会话已握手，等待下位机确认本会话的 STOP。'
+        elif not wire_fresh:
+            hint = '等待新鲜串口遥测。'
+        elif serial_reason in ('angle_invalid', 'sample_stale', 'sample_backwards', 'not_ready'):
+            hint = f'{local_reason}。已停止正常阻力请求。'
         elif not match:
             hint = ('串口、握手和遥测正常；当前仅发送 STOP/0。' if armed else
                     '串口、握手和遥测正常；设备未获本地使能，检查模式仍只发送 STOP/0。')
@@ -615,11 +724,11 @@ class DebugPanel:
         else:
             hint = ('点击面板获取操作焦点。' if self.ready(now) and self.root.focus_displayof() is None
                     else '等待 PC 确认模拟 VR 状态和人物。')
-        if fresh and sent and (ack is None or (sent['seq'] - ack) % 65536 > 10):
-            hint += ' 最近命令未见有效接收确认。'
-        if fresh and sent and ack == sent['seq'] and applied is not None and (
+        if sent and ack == sent['seq'] and applied is not None and (
                 abs(applied * 1000 - sent['target_mnm']) > .5):
             hint += ' 回报目标有差值，检查时序和设备本地限幅。'
+        if dropped:
+            hint += f' 实验日志有 {dropped} 条未记录。'
         self.hint.set(hint)
 
     def export(self):
@@ -627,7 +736,7 @@ class DebugPanel:
             return
         path = filedialog.asksaveasfilename(
             parent=self.root, title='保存本轮诊断日志', defaultextension='.zip',
-            initialfile='stm32-v01-' + time.strftime('%Y%m%d-%H%M%S') + '.zip',
+            initialfile='stm32-v11-' + time.strftime('%Y%m%d-%H%M%S') + '.zip',
             filetypes=[('ZIP 日志', '*.zip')],
         )
         if path:

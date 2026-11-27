@@ -20,7 +20,7 @@
 | STM32 | 板卡和固件提交；USB CDC 或 USART+转串口、实际 COM、串口参数；OPEN/ACK、遥测、STOP、序号和看门狗的实现情况；READY/ARM_READY/故障位来源；编码器零位、方向及主轴单位换算 |
 | 下位机与电气组，接制动器前 | 硬件限幅、急停、机械限位、独立保护及人工重新使能的确认人和记录；断联/断电动作；经确认的台架工况和测量方法 |
 
-PC 交给对端的是 [UDP V0.1](vr-udp-v01.md) 和 [串口 V1](stm32-serial-v1.md)，不要求 VR 同学复制测试场景，仓库也不包含 STM32 固件。串口 V1 仍是待下位机组确认的修订草案；若对端已采用不同格式，先留下实际报文和差异，再共同决定是否升版。
+PC 交给对端的是 [UDP V0.1](vr-udp-v01.md) 和 [串口 V1.1](stm32-serial-v11.md)。[下位机首次交接包](../handoff/stm32_v11/START_HERE.md)包含 C 参考和黄金帧。完整固件由下位机组接入，实际传感器和硬件授权待双方确认。
 
 ## A：正式场景先与模拟机械联通
 
@@ -93,23 +93,23 @@ VR 目标为 PC 的该 IP 和 UDP 9102，本地 socket 需绑定可路由的本�
 关闭占用该 COM 的串口助手。首次只启动 PC，不运行任何 VR 客户端，使用单独测试端口与原演示隔离。COM9 为示例，必须替换：
 
 ```powershell
-.\.venv\Scripts\python.exe -m real.run --port COM9 --baudrate 115200 --host 127.0.0.1 --vr-port 19102 --duration 60 --log-file "$env:TEMP\arm-stm32-first-link.jsonl"
+.\.venv\Scripts\python.exe -m real.run --port COM9 --baudrate 115200 --host 127.0.0.1 --vr-port 19102 --monitor-only --duration 60 --log-file "$env:TEMP\arm-stm32-first-link.jsonl"
 ```
 
-19102 只用于这次无 VR 检查，不改变正式 UDP 9102 约定。不要让其他客户端向它发送 running。该入口并非只读监视器：未握手时发送 OPEN，匹配 ACK 后持续发送制动命令；本流程无 VR，正常目标应一直是 STOP/0。物理隔离由下位机/电气组落实，命令参数不能代替隔离或独立保护。
+19102 只用于这次无 VR 检查，不改变正式 UDP 9102 约定。也可启动 Tk 面板，保持默认的仅 STOP。串口端主动发送 OPEN，握手后仅写出 STOP/0，UDP 请求不会使能制动。物理隔离由下位机/电气组落实，命令参数不能代替隔离或独立保护。
 
 | 项目 | 检查 | 验收 |
 |---|---|---|
 | B1 打开与握手 | PC serial_open、serial_session_ready；固件收到 OPEN 并回相同 session_id | 不能只凭“COM 已打开”通过；CRC、类型和会话编号匹配 |
 | B2 遥测 | 先输出已知软件角度，再检查真实编码器（若可安全转动） | telemetry_fresh=true；−400 mrad 对应 −0.400 rad，−200 mrad/s 对应 −0.200 rad/s；零位、符号、主轴换算一致 |
-| B3 未使能状态 | 固件保留 ARM_READY=0，不为通过画面而授权 | 会话和角度仍可正常，serial_arm_ready=false、mode=stop、目标 0；reason=device_fault 可为预期结果 |
+| B3 未使能状态 | 固件保留 ARM_READY=0，不为通过画面而授权 | 会话和角度仍可正常，serial_arm_ready=false、mode=stop、目标 0；`serial_status_reason=unarmed` 表示本地未授权 |
 | B4 STOP 与回报 | 固件记录实际收到的命令、模式和序号 | 匹配会话的 STOP 携带 0；applied_target_mnm 为本地目标回报，不能称为实测力矩 |
-| B5 串口中断 | 在无制动功率条件下停止遥测/拔插、重启 PC 或板卡 | PC 清除有效机械数据并重新握手；固件丢弃旧命令/会话。观察 PC 的 telemetry_missing/serial_timeout 等事件，不能只等某个固定 reason |
+| B5 串口中断 | 在无制动功率条件下停止遥测/拔插、重启 PC 或板卡 | PC 清除有效机械数据并重新握手；固件丢弃旧命令/会话。观察 `serial_session_restart` 及重连后的 STOP 确认 |
 | B6 固件本地保护 | 对照原协议确认 CRC/旧序号/旧会话/看门狗处理；记录固件侧证据 | 无效帧不续命；命令失效清目标和 ARM_READY；握手、故障消除和 VR running 均不代替人工重新使能 |
 
-当前 `Stm32Link` 把“不满足 READY + ARM_READY，或含故障/保留位”统一映射为 PC 的 device_fault。因此**通信验收不要求 ARM_READY=1，也不要求 mode=enabled**。使用 session_ready、telemetry_fresh、有效角度及固件日志分别判断。
+通信验收先看会话和本会话 STOP 确认，再看板端的角度采样是否推进、`ANGLE_VALID` 是否有效。保持 COM 打开重启板卡，确认上位机生成新会话、再次收到 STOP 回报，比赛停在等待或暂停。
 
-PC 现有 JSON 没有完整记录原始 status_flags、传感器力及命令 ACK 字段；这些项目需要固件日志/串口抓帧与 V1 参考解码对照，不能仅凭 PC 面板推断每个标志。FORCE_VALID=0 时字段无效，不能将 sensor_force_mn=0 当成实测零力。协议第 4 节给出五组黄金字节，可先离线逐字节核对，无需向实板注入 ENABLE 示例。
+面板可导出 PC 诊断和逐帧实验日志。FORCE_VALID=0 时传感器力无效；STM32 回报目标与实测力矩分别记录。第 4 节的六条黄金帧供离线核对。
 
 纯 PC 协议/状态回归可独立运行，不打开真实 COM：
 
@@ -117,7 +117,7 @@ PC 现有 JSON 没有完整记录原始 status_flags、传感器力及命令 ACK
 .\.venv\Scripts\python.exe -m unittest common.test_serial_protocol real.test_stm32_link common.test_fatigue common.test_characters sim.test_vr_udp -q
 ```
 
-`tests/serial/check_windows_v1.py` 会发送非零 ENABLE 并使用模拟授权，仅用于软件虚拟 COM 对，**不要将它的端口改为实板来做首次测试**。`--demo-arm` 只属于模拟设备，实机不能据此获得许可。
+`tests/serial/check_windows_v11.py` 会发送非零 ENABLE 并使用模拟授权，仅用于软件虚拟 COM 对，**不要将它的端口改为实板来做首次测试**。`--demo-arm` 只属于模拟设备，实机不能据此获得许可。
 
 ## 接制动器与合并联调
 

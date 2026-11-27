@@ -10,7 +10,7 @@ VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协
 
 设备到位后，优先验证实体 STM32 通信，测量实际机械参数，并在独立保护确认后开展制动器台架标定。[实体联调流程](docs/real-vr-stm32-integration-v01.md)
 
-下位机同学可以用 Windows 的 [STM32 上位机联调工具](docs/stm32-debug-panel-v01.md) 检查串口、握手和遥测，再模拟比赛并导出日志。它可以独立于 Unity 运行。
+下位机同学可以用 Windows 的 [STM32 上位机联调工具](docs/stm32-debug-panel-v01.md) 检查串口、握手和遥测，再模拟比赛并导出日志。它可以独立于 Unity 运行。首次对接使用串口 V1.1（线上版本 `02`）。[接板起步](handoff/stm32_v11/START_HERE.md) · [统一协议](docs/stm32-serial-v11.md) · [C 参考代码](firmware_reference/stm32_v11/README.md)
 
 P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本仓库的模拟下位机完成软件联合仿真。V0.4 可用 PC 启动参数 `--strategy balanced|defensive|rhythmic`，默认均衡。启动方式、策略和对比数据见 [V0.4 策略说明](docs/character-library-v04.md)。
 
@@ -24,14 +24,14 @@ V0.5-C 补测大角度回推与滑行，并在 TCP 软件仿真中加入可选�
 
 ```mermaid
 flowchart LR
-    Board["STM32 / 模拟 STM32"] <-->|"V1 二进制串口"| PC["PC 上位机：状态判断与阻力计算"]
+    Board["STM32 / 模拟 STM32"] <-->|"V1.1 二进制串口"| PC["PC 上位机：状态判断与阻力计算"]
     PC <-->|"UDP V0.1：127.0.0.1:9102"| VR["Unity / VR 客户端"]
 ```
 
 | 部分 | 负责什么 | 主要入口或约定 |
 |---|---|---|
 | PC 上位机 | 接收机械状态、判断比赛与通信状态、计算阻力、回传角度 | 串口入口 `real.run`；TCP 模拟入口 `common.bridge` |
-| STM32 | 采集角度与速度、执行制动指令、处理本地使能和故障保护 | [串口 V1 草案](docs/stm32-serial-v1.md)，需与下位机组确认并实现 |
+| STM32 | 采集角度与速度、执行制动指令、处理本地使能和故障保护 | [串口 V1.1 首次交接](docs/stm32-serial-v11.md)，需与下位机组确认并实现 |
 | Unity/VR | 发送角色编号和比赛状态，接收机械角度驱动自己的模型 | [UDP V0.1](docs/vr-udp-v01.md)，同一个 UDP socket 收发 |
 | 测试程序 | 代替暂未接入的设备，检查通信和状态变化 | `sim/` 的模拟设备；`tests/` 的联调工具 |
 
@@ -43,16 +43,16 @@ armwrestling/
 │   ├── strength_response.py  人物阻力缓升、下降与复位
 │   ├── fatigue.py          V0.3 等效疲劳与恢复（演示模型）
 │   ├── state.py            比赛状态、数据有效性和超时处理
-│   ├── serial_protocol.py  STM32 V1 二进制帧编解码
+│   ├── serial_protocol.py  STM32 V1.1 二进制帧编解码
 │   ├── protocol.py         UDP JSON 与旧 TCP JSON 校验
 │   ├── console.py          中文终端显示与 JSON 日志
 │   └── bridge.py           PC 的 TCP 模拟 + UDP 入口
 ├── real/
-│   ├── run.py              PC 的串口 V1 + UDP 入口
+│   ├── run.py              PC 的串口 V1.1 + UDP 入口
 │   └── stm32_link.py       串口读写、会话握手和遥测解析
 ├── sim/
 │   ├── mock_stm32.py       TCP 模拟下位机，供快速测试 UDP
-│   ├── mock_stm32_serial.py  V1 模拟下位机，支持 Windows COM / Linux PTY
+│   ├── mock_stm32_serial.py  V1.1 模拟下位机，支持 Windows COM / Linux PTY
 │   ├── mock_vr.py          Python UDP 测试客户端
 │   └── run.py / arm.xml    独立的 MuJoCo 力学仿真
 ├── tools/                 STM32 独立联调面板
@@ -83,7 +83,7 @@ armwrestling/
 
 ### 参考测试客户端路线
 
-这条路线适合 VR 同学拿到仓库后先确认自己的 UDP 客户端能用。模拟 STM32 通过 TCP 提供机械状态，PC 仍然执行现有控制计算；这一步只验证 UDP，不算串口 V1 验证。
+这条路线适合 VR 同学拿到仓库后先确认自己的 UDP 客户端能用。模拟 STM32 通过 TCP 提供机械状态，PC 仍然执行现有控制计算；这一步只验证 UDP，不算串口 V1.1 验证。
 
 ### 1. 准备 Python 环境
 
@@ -195,7 +195,7 @@ PC 首次收到有效 VR 状态时确定初始人物。此后 running 中保持�
 
 这只运行确定输入的软件模型，不占用串口或 UDP，不代表 Unity 或实机测试。PC 面板分别显示静态目标、疲劳后目标、当前下发幅值、等效疲劳和剩余能力系数。Unity 仍只显示原协议中的机械角度和状态，疲劳数据留在 PC 本地。
 
-## 再验证 STM32 V1：Windows 虚拟串口路线
+## 再验证 STM32 V1.1：Windows 虚拟串口路线
 
 这条路线用 `real.run` 替换前面的 `common.bridge`，用串口模拟器替换 TCP 模拟器。Unity 客户端和 UDP 协议保持原样。
 
@@ -217,7 +217,7 @@ PC 首次收到有效 VR 状态时确定初始人物。此后 running 中保持�
 .\.venv\Scripts\python.exe -m real.run --port COM1
 ```
 
-确认 PC 的“V1 会话已确认”“本地使能许可已获得”，再在 Unity 依次检查四种状态。COM 中传输的是 V1 二进制帧，包含会话编号、序号与 CRC16，串口参数为 115200 / 8N1。`--demo-arm` 只授权软件模拟器，不是发给真实 STM32 的启动参数。
+确认 PC 的“V1.1 会话已确认”“当前会话 STOP 已确认”“本地使能许可已获得”，再在 Unity 依次检查四种状态。COM 中传输的是 V1.1 二进制帧，包含会话编号、MCU 采样时间、序号与 CRC16，串口参数为 115200 / 8N1。`--demo-arm` 只授权软件模拟器，不是发给真实 STM32 的启动参数。
 
 `--log-file "$env:TEMP\armwrestling-pc.jsonl"` 可在中文面板之外保存详细日志；`--display json` 可切回逐行 JSON。完整操作和测试命令见 [Windows 串口与终端说明](docs/windows-serial-operator-guide.md)。
 
@@ -231,17 +231,17 @@ PC 首次收到有效 VR 状态时确定初始人物。此后 running 中保持�
 | 下位机停止 | PC 返回空角度并停止正常控制；Unity 保持姿态、提示无效 |
 | Unity 停止 Play | 约 1 秒后 PC 提示 Unity 心跳超时，目标阻力为 0 |
 | 重新运行 | Unity 重进 Play 或模拟器重启后，恢复有效数据和状态切换 |
-| V1 串口路线 | 会话握手完成；running 且进入阻力区时，模拟器收到指令并产生非零模拟制动 |
+| V1.1 串口路线 | 会话握手完成；running 且进入阻力区时，模拟器收到指令并产生非零模拟制动 |
 
 联调结束记录使用的提交、PC 入口、端口、Unity 版本和异常现象。串口路线还应记录 COM 配对。PC 计算值、下位机回报的目标幅值和传感器实测力矩是不同的数据，记录时写清来源。
 
 2026-11-15 已在 Windows 11、Python 3.11.5、pyserial 3.5、Unity 2022.3.62f3c1 上完成：45 项 Python 测试通过、1 项 Linux PTY 测试跳过，6 项实际 COM 协议检查通过，23 项真正的 Unity＋COM 链路检查通过。结果见 [V1 串口测试记录](docs/test-results/2026-11-15-windows-serial.json)；早期 TCP＋Unity 的 [22 项检查记录](docs/test-results/2026-11-15-unity-udp.json) 单独保留。这些是已记录的测试结果，后续换版本或设备应重新验证。
 
-实体 STM32、头显及 IL2CPP 构建还没有联调。串口 V1 仍需下位机组确认并实现相应固件；真实设备的人工使能、故障保护和标定不能由软件模拟结果代替。
+实体 STM32、头显及 IL2CPP 构建还没有联调。串口 V1.1 软件验证见[验收记录](docs/stm32-serial-v11-windows.md)，仍待下位机组确认并接入固件；真实设备的人工使能、故障保护和标定不能由软件模拟结果代替。
 
 ## 接真实 STM32 时怎么换
 
-停止模拟下位机，让 PC 的 `real.run --port` 指向真实设备端口，例如 `COM9`。先核对 [V1 协议](docs/stm32-serial-v1.md) 的会话、遥测标志和本地保护，再验证角度零位、方向及制动幅值。PC 的公共算法和 VR UDP 接口继续使用原实现。运行入口见 [real/README.md](real/README.md)。
+停止模拟下位机，让 PC 的 `real.run --port` 指向真实设备端口，例如 `COM9`。先以 `--monitor-only` 或面板默认模式核对 [V1.1 协议](docs/stm32-serial-v11.md) 的会话、遥测标志和本地保护，再验证角度零位、方向及制动幅值。PC 的公共算法和 VR UDP 接口继续使用原实现。运行入口见 [real/README.md](real/README.md)。
 
 ## 常见问题
 
@@ -270,10 +270,11 @@ MuJoCo 用于单独研究机械布局和控制手感，不参与上述通信测�
 | 文档 | 内容 |
 |---|---|
 | [VR UDP V0.1](docs/vr-udp-v01.md) | VR 同学对接时使用的字段与时序 |
-| [STM32 串口 V1](docs/stm32-serial-v1.md) | 下位机组待确认的二进制协议和样例 |
+| [STM32 串口 V1.1](docs/stm32-serial-v11.md) | 首次下位机交接协议和黄金样例 |
+| [STM32 串口 V1 历史](docs/stm32-serial-v1.md) | 原草案及已有联调证据所用协议 |
 | [真实 VR / STM32 联调准备](docs/real-vr-stm32-integration-v01.md) | 分线启动、首次接板、验收与结果模板 |
 | [Windows 串口与中文终端](docs/windows-serial-operator-guide.md) | COM 启动、面板含义、自动测试与证据 |
 | [Unity 测试工程配置](docs/windows-unity-udp-test.md) | 参考客户端、场景生成和移植边界 |
-| [Linux PTY 路线](docs/serial-pty-demo.md) | Ubuntu 上的 V1 软件串口测试 |
+| [Linux PTY 路线](docs/serial-pty-demo.md) | Ubuntu 上的 V1.1 软件串口测试 |
 | [机械布局与轨迹分析](docs/trajectory-fit.md) | 原布局和候选方案的人体轨迹适配分析 |
 | [待办记录](TASKS.md) | 各阶段已做和待做事项 |
