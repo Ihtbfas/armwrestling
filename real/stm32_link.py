@@ -3,6 +3,7 @@
 The control law is in common/control.py; this module only handles bytes.
 Requires pyserial only when a serial port is actually opened.
 """
+import os
 import secrets
 import time
 
@@ -26,17 +27,28 @@ class Stm32Link:
         self.pending = b''
         self.blocked_since = None
         self.latest = None
+        self.monitor_only = False
+        self._observe_written_commands = True
+        self._require_complete_write = False
+        self._pending_command = None
+        self.last_sent_command = None
+        self.last_sent_at = None
         if now is not None:
             self.next_open = now
 
     @classmethod
-    def open(cls, port_name, baudrate=115200):
+    def open(cls, port_name, baudrate=115200, *, write_timeout=0):
         try:
             import serial
         except ImportError as error:
             raise RuntimeError('serial mode needs pyserial: python -m pip install pyserial') from error
-        port = serial.Serial(port_name, baudrate=baudrate, timeout=0, write_timeout=0)
-        return cls(port)
+        port = serial.Serial(port_name, baudrate=baudrate, timeout=0, write_timeout=write_timeout)
+        link = cls(port)
+        # Windows pyserial can report the whole request for an overlapped
+        # nonblocking write that the driver has yet to complete.
+        link._observe_written_commands = os.name != 'nt' or write_timeout != 0
+        link._require_complete_write = write_timeout != 0
+        return link
 
     def close(self):
         self.port.close()
@@ -57,6 +69,14 @@ class Stm32Link:
         self.pending = self.pending[sent:]
         if not self.pending:
             self.blocked_since = None
+            if self._pending_command is not None:
+                self.last_sent_command = self._pending_command
+                self.last_sent_at = now
+                self._pending_command = None
+        elif self._require_complete_write:
+            # A canceled bounded write must not finish a stale frame on the
+            # next tick. The bridge drops this link and opens a new session.
+            raise TimeoutError('serial write did not complete')
         elif self.blocked_since is not None and now - self.blocked_since > 0.25:
             raise TimeoutError('serial output blocked >250 ms')
 
@@ -100,12 +120,15 @@ class Stm32Link:
         now = time.monotonic() if now is None else now
         if not self.session_ready or self.pending:
             return False
-        enabled = command['mode'] == 'enabled' and self.arm_ready
+        enabled = not self.monitor_only and command['mode'] == 'enabled' and self.arm_ready
         torque = int(round(command['target_torque_nm'] * 1000)) if enabled else 0
         mode = MODE_ENABLE if enabled else MODE_STOP
         packet = command_frame(self.tx_seq, self.session_id, mode, torque,
                                command['valid_for_ms'])
         self._send(packet, now)
+        if self._observe_written_commands:
+            self._pending_command = dict(seq=self.tx_seq, mode='ENABLE' if enabled else 'STOP',
+                                         target_mnm=torque, valid_for_ms=command['valid_for_ms'])
         self.tx_seq = (self.tx_seq + 1) & 0xFFFF
         self._flush(now)
         return True

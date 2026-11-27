@@ -10,6 +10,8 @@ VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协
 
 设备到位后，优先验证实体 STM32 通信，测量实际机械参数，并在独立保护确认后开展制动器台架标定。[实体联调流程](docs/real-vr-stm32-integration-v01.md)
 
+下位机同学可以用 Windows 的 [STM32 上位机联调工具](docs/stm32-debug-panel-v01.md) 检查串口、握手和遥测，再模拟比赛并导出日志。它可以独立于 Unity 运行。
+
 P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本仓库的模拟下位机完成软件联合仿真。V0.4 可用 PC 启动参数 `--strategy balanced|defensive|rhythmic`，默认均衡。启动方式、策略和对比数据见 [V0.4 策略说明](docs/character-library-v04.md)。
 
 V0.5-A 的 TCP 软件模拟入口可用 `--resistance-profile legacy|narrow|start-resistance` 比较阻力生效区域，默认沿用原自由区。[实验说明与曲线](docs/character-library-v05a.md)
@@ -53,6 +55,7 @@ armwrestling/
 │   ├── mock_stm32_serial.py  V1 模拟下位机，支持 Windows COM / Linux PTY
 │   ├── mock_vr.py          Python UDP 测试客户端
 │   └── run.py / arm.xml    独立的 MuJoCo 力学仿真
+├── tools/                 STM32 独立联调面板
 ├── tests/
 │   ├── unity/             Unity 测试客户端、摆臂和编辑器联调工具
 │   └── serial/            实际 COM 端口对的协议检查
