@@ -210,7 +210,7 @@ class FrameParser:
         self.buffer = bytearray()
         self.assembly_timeout_s = assembly_timeout_s
         self.started_at = None
-        self.crc_errors = self.header_errors = self.timeouts = 0
+        self.crc_errors = self.header_errors = self.timeouts = self.sync_discards = 0
 
     def expire(self, now=None):
         """Call periodically even without incoming bytes; discard stalled fragments."""
@@ -233,13 +233,17 @@ class FrameParser:
         while True:
             start = self.buffer.find(SYNC)
             if start < 0:
-                self.buffer = bytearray(b'\xA5') if self.buffer.endswith(b'\xA5') else bytearray()
-                if not self.buffer:
-                    self.started_at = None
-                elif self.started_at is None:
+                keep = int(self.buffer.endswith(SYNC[:1]))
+                discarded = len(self.buffer) - keep
+                if discarded:
+                    self.sync_discards += discarded
+                    del self.buffer[:discarded]
+                    self.started_at = now if keep else None
+                elif keep and self.started_at is None:
                     self.started_at = now
                 break
             if start:
+                self.sync_discards += start
                 del self.buffer[:start]
                 self.started_at = None
             if self.started_at is None:

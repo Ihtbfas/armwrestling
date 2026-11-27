@@ -5,6 +5,7 @@
 - [x] V0.1 至 V0.5-C 软件控制模型开发已完成，正式 VR 主场景已完成软件联合仿真。[收口说明与验证记录](docs/character-library-v05c.md)
 - [x] 默认使用原自由区、对称制动和 0 ms 延迟（`legacy + symmetric + 0 ms`）。优先验证的实验候选为 `narrow + symmetric + 0 ms`，`relief` 和反应延迟保留为软件对照。
 - [x] STM32 V1.1 首次交接包完成，包含 PC 面板、C 参考和虚拟 COM 验收。[交接入口](handoff/stm32_v11/START_HERE.md)
+- [x] 联调助手 V0.2 完成首次交付收口，含原始通信诊断、STOP/0 确认、趋势及离线日志分析。[操作说明](docs/stm32-debug-panel-v02.md)
 - [ ] 实体 STM32 到位后，先验证 COM、V1.1 会话、STOP 确认和遥测。按现有流程分线联调并记录结果。[实体联调流程](docs/real-vr-stm32-integration-v01.md) · [记录模板](docs/real-integration-record-template.md)
 - [ ] 测量机械零位、有效行程、惯量和阻尼。
 - [ ] 下位机与电气组确认独立保护后，在无人接触台架标定制动器力矩与响应时间。

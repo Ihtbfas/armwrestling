@@ -9,6 +9,7 @@ import threading
 import time
 
 from common.bridge import log, positive
+from common.characters import CHARACTERS
 from common.console import add_console_arguments, reporter_from_args
 from common.protocol import MAX_LINE, decode_datagram, encode_datagram, validate_incoming
 from common.serial_protocol import FLAG_ACK_VALID, FLAG_ARM_READY
@@ -23,7 +24,7 @@ STOP = dict(mode='stop', target_torque_nm=0., valid_for_ms=200)
 def serve(port, host='127.0.0.1', vr_port=9102, baudrate=115200,
           duration=None, telemetry_timeout=.25, vr_timeout=1., reporter=None, *,
           strategy=DEFAULT_STRATEGY, monitor_only=False, vr_source_port=None,
-          stop_event=None, diagnostic_interval=.5, experiment=None):
+          stop_event=None, diagnostic_interval=.5, experiment=None, hex_preview=False):
     emit = reporter or log
     trace = experiment.record if experiment is not None else None
     state = BridgeState(telemetry_timeout, vr_timeout, strategy=strategy)
@@ -101,6 +102,7 @@ def serve(port, host='127.0.0.1', vr_port=9102, baudrate=115200,
                     try:
                         was_ready, was_confirmed = link.session_ready, link.session_confirmed
                         previous_session = link.session_id
+                        previous_stop = link.stop_target_zero
                         if link.matched_telemetry and not link.wire_fresh(now):
                             best_effort_stop()
                             link.start_session(now, 'telemetry_timeout')
@@ -123,6 +125,10 @@ def serve(port, host='127.0.0.1', vr_port=9102, baudrate=115200,
                         if link.session_ready and (not was_ready or previous_session != link.session_id):
                             emit(dict(event='serial_session_ready', port=port,
                                       serial_session_id=_id(link.session_id)))
+                        if link.stop_target_zero is False and (previous_stop is not False
+                                                                 or previous_session != link.session_id):
+                            emit(dict(event='serial_stop_nonzero', seq=link.last_ack_seq,
+                                      applied_target_mnm=link.latest.applied_target_mnm))
                         if link.session_confirmed and (not was_confirmed or previous_session != link.session_id):
                             recovery_reason = None
                             emit(dict(event='serial_stop_confirmed', seq=link.last_ack_seq))
@@ -176,12 +182,14 @@ def serve(port, host='127.0.0.1', vr_port=9102, baudrate=115200,
                         except BlockingIOError:
                             pass
                     if now >= next_log:
-                        rate = None
+                        rate = tx_rate = None
                         if link is not None:
-                            if link.wire_fresh(now) and rate_from is not None:
-                                before, count = rate_from
-                                rate = round((link.telemetry_count - count) / (now - before), 1)
-                            rate_from = (now, link.telemetry_count)
+                            if rate_from is not None:
+                                before, rx_count, tx_count = rate_from
+                                if link.wire_fresh(now):
+                                    rate = round((link.telemetry_count - rx_count) / (now - before), 1)
+                                tx_rate = round((link.tx_frames - tx_count) / (now - before), 1)
+                            rate_from = (now, link.telemetry_count, link.tx_frames)
                         else:
                             rate_from = None
                         if link is None or link.measured_velocity is None:
@@ -189,7 +197,14 @@ def serve(port, host='127.0.0.1', vr_port=9102, baudrate=115200,
                         if link is not None and link.sample_fresh(now):
                             status['telemetry_age_ms'] = _age_ms(link.sample_at, now)
                         extra = _serial_diagnostics(link, rate, now, recovery_reason, experiment)
-                        extra.update(monitor_only=monitor_only, debug_resume_required=resume_required)
+                        params = CHARACTERS[status['active_character_id']].brake_parameters
+                        extra.update(monitor_only=monitor_only, debug_resume_required=resume_required,
+                                     serial_free_boundary_rad=params.free_boundary,
+                                     serial_forward_sign=params.forward_sign,
+                                     serial_initial_angle_rad=params.initial_angle, serial_tx_rate_hz=tx_rate)
+                        if hex_preview and link is not None:
+                            extra.update(serial_rx_hex=link.rx_tail.hex(' ').upper() or None,
+                                         serial_tx_hex=link.tx_tail.hex(' ').upper() or None)
                         emit(dict(status, **extra, elapsed_s=round(now-start, 3)))
                         next_log = now + diagnostic_interval
                     next_tick = now + .02
@@ -221,6 +236,8 @@ def _serial_diagnostics(link, rate, now, recovery, experiment):
         serial_open=link is not None,
         serial_session_ready=link is not None and link.session_ready,
         serial_session_confirmed=link is not None and link.session_confirmed,
+        serial_stop_acknowledged=link is not None and link.stop_target_zero is not None,
+        serial_stop_target_zero=link.stop_target_zero if link is not None else None,
         serial_session_id=_id(link.session_id) if link is not None else None,
         serial_peer_session_id=_id(raw.session_id) if raw is not None else None,
         serial_arm_ready=raw is not None and bool(raw.status_flags & FLAG_ARM_READY),
@@ -247,6 +264,16 @@ def _serial_diagnostics(link, rate, now, recovery, experiment):
         serial_applied_target_nm=raw.applied_target_mnm / 1000 if raw is not None else None,
         serial_last_sent=link.last_sent_command if link is not None else None,
         serial_last_sent_age_ms=_age_ms(link.last_sent_at, now) if link is not None else None,
+        serial_rx_bytes=link.rx_bytes if link is not None else None,
+        serial_tx_bytes=link.tx_bytes if link is not None else None,
+        serial_valid_frames=link.rx_frames if link is not None else None,
+        serial_tx_frames=link.tx_frames if link is not None else None,
+        serial_diagnostic_telemetry=link.telemetry_count if link is not None else None,
+        serial_matched_telemetry=link.matched_samples if link is not None else None,
+        serial_valid_telemetry=link.valid_samples if link is not None else None,
+        serial_sync_discards=link.parser.sync_discards if link is not None else None,
+        serial_rx_age_ms=_age_ms(link.last_rx_at, now) if link is not None else None,
+        serial_tx_age_ms=_age_ms(link.last_tx_at, now) if link is not None else None,
         serial_crc_errors=link.parser.crc_errors if link is not None else None,
         serial_header_errors=link.parser.header_errors if link is not None else None,
         serial_frame_timeouts=link.parser.timeouts if link is not None else None,
@@ -288,6 +315,7 @@ def main():
     parser.add_argument('--exit-on-stdin-eof', action='store_true', help='close when the owning GUI closes the input pipe')
     parser.add_argument('--diagnostic-interval', type=positive, default=.5,
                         help='seconds between local status snapshots (default: 0.5)')
+    parser.add_argument('--hex-preview', action='store_true', help='include bounded RX/TX tails in live JSON only')
     parser.add_argument('--experiment-log', help='optional bounded raw V1.1 telemetry/command JSONL trace')
     add_console_arguments(parser)
     args = parser.parse_args()
@@ -301,7 +329,7 @@ def main():
                     serve(args.port, args.host, args.vr_port, args.baudrate, args.duration,
                           reporter=reporter, strategy=args.strategy, monitor_only=args.monitor_only,
                           vr_source_port=args.vr_source_port, stop_event=stop_event,
-                          diagnostic_interval=args.diagnostic_interval, experiment=experiment)
+                          diagnostic_interval=args.diagnostic_interval, experiment=experiment, hex_preview=args.hex_preview)
                 except KeyboardInterrupt:
                     pass
             if experiment is not None and (experiment.error or experiment.dropped):

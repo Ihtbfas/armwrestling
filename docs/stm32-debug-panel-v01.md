@@ -1,5 +1,7 @@
 # STM32 上位机联调工具 V0.1
 
+> 本页为历史说明。首次交接请使用 [V0.2 面板](stm32-debug-panel-v02.md)。
+
 给下位机同学用的 Windows 面板。串口侧由 PC 原有的 `real.run` 完成握手、遥测解析和控制计算。当前串口使用 [V1.1](stm32-serial-v11.md)，线上版本 02。模拟比赛时，面板用同一个本地 UDP socket 收发 [VR V0.1](vr-udp-v01.md)，正式 VR 的 9102 端口留给 Unity。运行只需要 Python、Tkinter 和 pyserial。
 
 ## 启动

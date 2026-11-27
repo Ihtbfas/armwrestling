@@ -46,9 +46,9 @@ class SerialLinkTests(unittest.TestCase):
         self.wire = MemorySerial()
         self.link = Stm32Link(self.wire, now=0., session_id=123)
 
-    def rx(self, seq, sample, now, *, session=123, ack=None, flags=FLAGS, angle=-400):
+    def rx(self, seq, sample, now, *, session=123, ack=None, flags=FLAGS, angle=-400, applied=0):
         self.wire.incoming.extend(telemetry_frame(
-            seq, angle, -200, 0, flags | (FLAG_ACK_VALID if ack is not None else 0), ack or 0,
+            seq, angle, -200, 0, flags | (FLAG_ACK_VALID if ack is not None else 0), ack or 0, applied,
             mcu_sample_ms=sample, session_id=session,
         ))
         self.link.poll(now)
@@ -106,6 +106,56 @@ class SerialLinkTests(unittest.TestCase):
         self.rx(4, 50, .16, ack=seq)
         self.assertEqual(self.link.last_ack_at, .16)
         self.assertIsNone(self.link.ack_pending_age(.25))
+
+    def test_stop_ack_with_nonzero_target_forbids_enable_until_verified_zero(self):
+        self.handshake()
+        self.rx(1, 20, .02, ack=0, applied=120)
+        self.assertIs(self.link.stop_target_zero, False)
+        self.assertFalse(self.link.session_confirmed)
+        self.assertEqual(self.link.reason(.02), 'stop_target_nonzero')
+        seq, command = self.command(.025)
+        self.assertEqual(command.mode, MODE_STOP)
+        self.rx(2, 30, .03, ack=900)
+        self.assertFalse(self.link.session_confirmed)  # zero with an unwritten ACK
+        self.rx(2, 31, .031, ack=seq)
+        self.assertFalse(self.link.session_confirmed)  # duplicate telemetry
+        self.rx(3, 40, .04, ack=0)
+        self.assertEqual(self.link.last_ack_at, .02)  # the same STOP can report zero, without new progress
+        self.assertTrue(self.link.session_confirmed)
+        _, command = self.command(.045)
+        self.assertEqual(command.mode, MODE_ENABLE)
+        self.rx(4, 50, .05, ack=seq, applied=42)
+        self.assertFalse(self.link.session_confirmed)
+        self.assertEqual(self.link.interruption, 'stop_target_nonzero')
+
+    def test_byte_counts_and_tails_keep_only_api_read_and_accepted_bytes(self):
+        original_write = self.wire.write
+        self.wire.write = lambda data: original_write(data[:3])
+        self.link.poll(0.)
+        self.assertEqual((self.link.rx_bytes, self.link.tx_bytes, self.link.tx_frames), (0, 3, 0))
+        self.assertEqual(self.link.tx_tail, bytes(self.wire.outgoing))
+        self.wire.write = original_write
+        self.link.poll(.003)
+        opening = bytes(self.wire.outgoing)
+        self.assertEqual((self.link.tx_bytes, self.link.tx_frames), (len(opening), 1))
+        hello = session_ack_frame(0, 123)
+        first = b'z' * 38 + hello[:1]
+        self.wire.incoming.extend(first)
+        self.link.poll(.005)
+        self.assertEqual(self.link.rx_tail, first[-32:])
+        self.assertEqual((self.link.rx_bytes, self.link.rx_frames, self.link.parser.sync_discards),
+                         (39, 0, 38))
+        self.wire.incoming.extend(hello[1:])
+        self.rx(0, 10, .011)
+        self.assertEqual((self.link.rx_frames, self.link.matched_samples, self.link.valid_samples), (2, 1, 1))
+        self.rx(1, 10, .021)
+        self.assertEqual((self.link.rx_frames, self.link.matched_samples, self.link.valid_samples), (3, 2, 1))
+        received = self.link.rx_bytes
+        self.link.start_session(.03, 'test')
+        self.assertEqual(self.link.rx_bytes, received)
+        self.assertEqual(self.link.tx_frames, 1)
+        self.assertEqual(self.link.parser.sync_discards, 38)
+        self.assertEqual(Stm32Link(MemorySerial()).rx_bytes, 0)
 
     def test_no_session_telemetry_wins_over_old_sequence_on_same_port(self):
         self.handshake(seq=40000, sample=2000)

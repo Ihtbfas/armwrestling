@@ -72,6 +72,21 @@ class SerialProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             encode_frame(TYPE_BRAKE_COMMAND, 0, bytes(64))
 
+    def test_sync_search_counts_only_discarded_bytes_and_keeps_tail(self):
+        parser = FrameParser()
+        frame = session_open_frame(1, SESSION)
+        self.assertEqual(parser.feed(b''), [])
+        self.assertEqual(parser.sync_discards, 0)
+        self.assertEqual(parser.feed(b'boot text\r\n' + frame[:1], now=1.), [])
+        self.assertEqual(parser.sync_discards, len(b'boot text\r\n'))
+        self.assertEqual(parser.feed(frame[1:] + frame, now=1.01),
+                         [decode_frame(frame)] * 2)
+        self.assertEqual(parser.sync_discards, len(b'boot text\r\n'))
+        self.assertEqual(parser.feed(frame[:5], now=2.), [])
+        self.assertTrue(parser.expire(2.11))
+        self.assertEqual(parser.timeouts, 1)
+        self.assertEqual(parser.sync_discards, len(b'boot text\r\n'))
+
     def test_arm_requires_angle_and_known_safe_status(self):
         enabled = FLAG_READY | FLAG_ANGLE_VALID | FLAG_ARM_READY | FLAG_ACK_VALID
         for flags, expected in ((enabled, True), (enabled ^ FLAG_ANGLE_VALID, False),

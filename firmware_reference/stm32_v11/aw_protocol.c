@@ -225,8 +225,19 @@ static void discard(AwParser *parser, size_t count)
     }
 }
 
+static void reset_overrun(AwParser *parser)
+{
+    ++parser->buffer_overruns;
+    parser->used = 0;
+    parser->started_ms = 0;
+}
+
 bool aw_parser_next(AwParser *parser, uint32_t now_ms, AwFrame *out)
 {
+    if (parser->used > sizeof(parser->bytes)) {
+        reset_overrun(parser);
+        return false;
+    }
     while (parser->used > 0) {
         size_t offset = 0;
         size_t size;
@@ -276,6 +287,11 @@ bool aw_parser_next(AwParser *parser, uint32_t now_ms, AwFrame *out)
 bool aw_parser_feed(AwParser *parser, uint8_t byte, uint32_t now_ms, AwFrame *out)
 {
     bool available = false;
+
+    /* Discard an abnormal full candidate before any parsing or append. */
+    if (parser->used >= sizeof(parser->bytes)) {
+        reset_overrun(parser);
+    }
 
     /* Expire an old partial candidate before appending a late byte. */
     if (parser->used > 0 && aw_elapsed_ms(now_ms, parser->started_ms) >= AW_ASSEMBLY_TIMEOUT_MS) {

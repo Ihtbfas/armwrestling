@@ -10,7 +10,7 @@ VR 同学负责自己的场景、人物动作和比赛交互，按 [UDP V0.1 协
 
 设备到位后，优先验证实体 STM32 通信，测量实际机械参数，并在独立保护确认后开展制动器台架标定。[实体联调流程](docs/real-vr-stm32-integration-v01.md)
 
-下位机同学可以用 Windows 的 [STM32 上位机联调工具](docs/stm32-debug-panel-v01.md) 检查串口、握手和遥测，再模拟比赛并导出日志。它可以独立于 Unity 运行。首次对接使用串口 V1.1（线上版本 `02`）。[接板起步](handoff/stm32_v11/START_HERE.md) · [统一协议](docs/stm32-serial-v11.md) · [C 参考代码](firmware_reference/stm32_v11/README.md)
+下位机同学可以用 Windows 的 [STM32 联调助手 V0.2](docs/stm32-debug-panel-v02.md) 检查串口、握手和遥测，再模拟比赛并导出日志。它可以独立于 Unity 运行。首次对接使用串口 V1.1（线上版本 `02`）。[接板起步](handoff/stm32_v11/START_HERE.md) · [统一协议](docs/stm32-serial-v11.md) · [C 参考代码](firmware_reference/stm32_v11/README.md)
 
 P3.0 使用 [正式 VR 工程](https://github.com/Ihtbfas/armwrestling-vr)和本仓库的模拟下位机完成软件联合仿真。V0.4 可用 PC 启动参数 `--strategy balanced|defensive|rhythmic`，默认均衡。启动方式、策略和对比数据见 [V0.4 策略说明](docs/character-library-v04.md)。
 

@@ -29,7 +29,8 @@ EVENTS = {'listening': '通信入口已启动', 'connected': '通信对端已连
           'closed': '程序已停止', 'serial_open': 'PC 串口已打开，等待 V1 握手',
           'serial_unavailable': '串口暂不可用，正在重试', 'serial_error': '串口异常，正在重连',
           'serial_timeout': '串口数据超时，重新建立会话',
-          'serial_session_ready': 'V1.1 会话握手已确认',
+          'serial_session_ready': 'V1.1 会话握手已确认', 'serial_stop_confirmed': 'STOP 已确认且目标回报为零',
+          'serial_stop_nonzero': 'STOP 已确认但目标回报非零，保持 STOP',
           'virtual_serial_ready': '模拟串口已打开，等待 PC',
           'vr_connected': 'Unity UDP 会话已连接', 'invalid_vr_packet': '忽略无效 Unity 消息',
           'session_open': 'V1.1 会话握手已响应', 'command_timeout': '指令看门狗已停止模拟制动'}
@@ -104,7 +105,9 @@ def operator_lines(role, message, info=None, events=()):
             lines.append('V1.1 会话：' + ('已确认' if message['serial_session_ready'] else '等待确认')
                          + ' | 本地使能许可：' + ('已获得' if message.get('serial_arm_ready') else '未获得'))
         if 'serial_session_confirmed' in message:
-            lines.append('当前会话 STOP：' + ('已确认' if message['serial_session_confirmed'] else '等待确认')
+            stop = ('已确认，回报目标曾为零' if message['serial_session_confirmed'] else
+                    '已接受，回报目标非零' if message.get('serial_stop_acknowledged') else '等待确认')
+            lines.append('当前会话 STOP：' + stop
                          + ' | MCU 采样：' + number(message.get('serial_mcu_sample_ms'), 0) + ' ms')
             lines.append('串口诊断：' + safe(message.get('serial_status_reason', '--'))
                          + ' | ACK 距更新：' + number(message.get('serial_ack_progress_age_ms'), 0) + ' ms')
@@ -178,7 +181,12 @@ class ConsoleReporter:
     def __call__(self, message):
         serialized = json.dumps(message, ensure_ascii=True, allow_nan=False) + '\n'
         if self.recording is not None:
-            self.recording.write(serialized)
+            if 'serial_rx_hex' in message or 'serial_tx_hex' in message:
+                recorded = {key: value for key, value in message.items()
+                            if key not in ('serial_rx_hex', 'serial_tx_hex')}
+                self.recording.write(json.dumps(recorded, ensure_ascii=True, allow_nan=False) + '\n')
+            else:
+                self.recording.write(serialized)
             self.recording.flush()
         if not self.human:
             self.stream.write(serialized)

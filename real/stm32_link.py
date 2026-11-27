@@ -11,6 +11,7 @@ from common.serial_protocol import (
 )
 
 ACK_TIMEOUT_S = .2
+HEX_TAIL_SIZE = 32
 
 
 def new_session_id():
@@ -28,6 +29,10 @@ class Stm32Link:
         self.retired = deque(maxlen=16)
         self.telemetry_count = self.sequence_drops = self.session_drops = 0
         self.payload_errors = self.ack_rejected = 0
+        self.rx_bytes = self.tx_bytes = self.rx_frames = self.tx_frames = 0
+        self.matched_samples = self.valid_samples = 0
+        self.rx_tail = self.tx_tail = b''
+        self.last_rx_at = self.last_tx_at = None
         self.latest = self.last_wire_at = self.last_wire_seq = None
         self.interruption = None
         self.start_session(0. if now is None else now, session_id=session_id)
@@ -52,24 +57,26 @@ class Stm32Link:
             self.interruption = reason
             self._trace('session_restart', now, reason=reason)
         self.session_id = new_session_id() if session_id is None else session_id
-        self.session_ready = self.session_confirmed = self.matched_telemetry = False
+        self.session_ready = self.matched_telemetry = False
+        self.stop_target_zero = None
         self.next_open = now
         self.last_device_seq = self.last_sample_ms = self.sample_at = None
         self.control_angle = None
         self.sample_state = 'unavailable'
         self.tx_seq = self.open_seq = 0
         self.pending = b''
-        self.blocked_since = self._pending_command = None
+        self.blocked_since = self._pending_command = self._pending_open_seq = None
         self.last_sent_command = self.last_sent_at = None
         self.outstanding = {}
-        self.last_ack_seq = self.last_ack_at = None
+        self.last_ack_seq = self.last_ack_at = self.last_ack_mode = None
 
     def _trace(self, kind, now, **fields):
         if self.trace is not None:
             self.trace(dict(type=kind, pc_monotonic_s=now, session_id=f'0x{self.session_id:016X}', **fields))
 
-    def _write(self, packet, now, command=None):
-        self.pending, self.blocked_since, self._pending_command = packet, now, command
+    def _write(self, packet, now, *, command=None, open_seq=None):
+        self.pending, self.blocked_since = packet, now
+        self._pending_command, self._pending_open_seq = command, open_seq
         self._flush(now)
 
     def _flush(self, now):
@@ -77,14 +84,22 @@ class Stm32Link:
             return
         started = time.monotonic() if self._require_complete_write else None
         sent = self.port.write(self.pending) or 0
+        if started is not None:
+            now += time.monotonic() - started
+        if sent:
+            self.tx_bytes += sent
+            self.last_tx_at = now
+            self.tx_tail = (self.tx_tail + self.pending[:sent])[-HEX_TAIL_SIZE:]
         self.pending = self.pending[sent:]
         if self.pending:
             if self._require_complete_write or now - self.blocked_since >= ACK_TIMEOUT_S:
                 raise TimeoutError('serial write did not complete')
             return
         self.blocked_since = None
-        if started is not None:
-            now += time.monotonic() - started
+        self.tx_frames += 1
+        if self._pending_open_seq is not None:
+            self._trace('session_open_written', now, seq=self._pending_open_seq)
+            self._pending_open_seq = None
         if self._pending_command is not None:
             command = self._pending_command
             self.last_sent_command, self.last_sent_at = command, now
@@ -133,10 +148,14 @@ class Stm32Link:
         if not self.sample_fresh(now):
             return 'sample_stale'
         if not self.session_confirmed:
-            return 'waiting_stop_ack'
+            return 'stop_target_nonzero' if self.stop_target_zero is False else 'waiting_stop_ack'
         if not flags & FLAG_ARM_READY:
             return 'unarmed'
         return 'ready'
+
+    @property
+    def session_confirmed(self):
+        return self.stop_target_zero is True
 
     def control_ready(self, now):
         return self.reason(now) == 'ready'
@@ -145,19 +164,24 @@ class Stm32Link:
         if not value.status_flags & FLAG_ACK_VALID:
             return
         seq = value.last_command_seq
-        if seq == self.last_ack_seq:
-            return
-        if seq not in self.outstanding or not is_new_sequence(seq, self.last_ack_seq):
-            self.ack_rejected += 1
-            return
-        mode = self.outstanding[seq][1]
-        for written in list(self.outstanding):
-            del self.outstanding[written]
-            if written == seq:
-                break
-        self.last_ack_seq, self.last_ack_at = seq, now
-        if mode == 'STOP':
-            self.session_confirmed = True
+        if seq != self.last_ack_seq:
+            if seq not in self.outstanding or not is_new_sequence(seq, self.last_ack_seq):
+                self.ack_rejected += 1
+                return
+            mode = self.outstanding[seq][1]
+            for written in list(self.outstanding):
+                del self.outstanding[written]
+                if written == seq:
+                    break
+            self.last_ack_seq, self.last_ack_at, self.last_ack_mode = seq, now, mode
+        if self.last_ack_mode == 'STOP':
+            # A later fresh telemetry frame may correct the same STOP's reply.
+            # Its repeated ACK does not refresh the progress timer.
+            zero = value.applied_target_mnm == 0
+            if zero != self.stop_target_zero:
+                self._trace('stop_observation', now, seq=seq,
+                            target_zero=zero, applied_target_mnm=value.applied_target_mnm)
+            self.stop_target_zero = zero
 
     def _observation(self, frame, value, now):
         if value.session_id in self.retired:
@@ -176,6 +200,7 @@ class Stm32Link:
         if not matching:
             return 'unpaired' if value.session_id == 0 else 'waiting_handshake'
         self.matched_telemetry = True
+        self.matched_samples += 1
         self.last_device_seq = frame.sequence
         self._accept_ack(value, now)
         sample = value.mcu_sample_ms
@@ -187,6 +212,7 @@ class Stm32Link:
             self.last_sample_ms = sample
             self.sample_state = 'advancing'
             self.sample_at = now if angle_valid else None
+            self.valid_samples += int(bool(angle_valid))
             self.control_angle = value.angle_rad if angle_valid else None
         else:
             if self.sample_state != 'backwards':
@@ -207,17 +233,27 @@ class Stm32Link:
                     velocity_valid=bool(value.status_flags & FLAG_VEL_VALID),
                     force_valid=bool(value.status_flags & FLAG_FORCE_VALID),
                     last_command_seq=value.last_command_seq, ack_valid=bool(value.status_flags & FLAG_ACK_VALID),
-                    verified_ack_seq=self.last_ack_seq, applied_target_mnm=value.applied_target_mnm)
+                    verified_ack_seq=self.last_ack_seq,
+                    verified_ack_mode=(self.last_ack_mode if value.session_id == self.session_id
+                                       and value.status_flags & FLAG_ACK_VALID
+                                       and value.last_command_seq == self.last_ack_seq else None),
+                    applied_target_mnm=value.applied_target_mnm)
 
     def poll(self, now=None):
         now = time.monotonic() if now is None else now
         available = self.port.in_waiting
-        for frame in self.parser.feed(self.port.read(min(max(available, 1), 4096)), now):
+        chunk = self.port.read(min(max(available, 1), 4096))
+        if chunk:
+            self.rx_bytes += len(chunk)
+            self.last_rx_at = now
+            self.rx_tail = (self.rx_tail + chunk)[-HEX_TAIL_SIZE:]
+        for frame in self.parser.feed(chunk, now):
             try:
                 value = decode_payload(frame)
             except ValueError:
                 self.payload_errors += 1
                 continue
+            self.rx_frames += 1
             if frame.kind == TYPE_SESSION_ACK:
                 if value.session_id == self.session_id and not self.session_ready:
                     self.session_ready = True
@@ -227,8 +263,7 @@ class Stm32Link:
                 if self.trace is not None:
                     self._trace_telemetry(frame, value, now, disposition)
         if not self.matched_telemetry and now >= self.next_open and not self.pending:
-            self._write(session_open_frame(self.open_seq, self.session_id), now)
-            self._trace('session_open_written', now, seq=self.open_seq)
+            self._write(session_open_frame(self.open_seq, self.session_id), now, open_seq=self.open_seq)
             self.open_seq = (self.open_seq + 1) & 0xFFFF
             self.next_open = now + .2
         else:
@@ -261,6 +296,6 @@ class Stm32Link:
         seq = self.tx_seq
         packet = command_frame(seq, self.session_id, mode, torque, command['valid_for_ms'])
         self.tx_seq = (seq + 1) & 0xFFFF
-        self._write(packet, now, dict(seq=seq, mode='ENABLE' if enabled else 'STOP',
+        self._write(packet, now, command=dict(seq=seq, mode='ENABLE' if enabled else 'STOP',
                                       target_mnm=torque, valid_for_ms=command['valid_for_ms']))
         return True

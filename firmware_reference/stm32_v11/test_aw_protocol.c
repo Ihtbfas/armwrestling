@@ -235,6 +235,89 @@ static void test_timeout_and_wrap(void)
     assert(parser.assembly_timeouts == 1);
 }
 
+static void test_capacity_guard(void)
+{
+    AwParser parser;
+    AwFrame frame;
+    uint8_t types[2];
+    const Vector *open = &vectors[0];
+
+    aw_parser_init(&parser);
+    /* Deliberately construct an impossible cursor for the public drain call. */
+    parser.used = SIZE_MAX;
+    parser.rejected_headers = 2;
+    assert(!aw_parser_next(&parser, 10, &frame));
+    assert(parser.used == 0 && parser.buffer_overruns == 1 && parser.rejected_headers == 2);
+
+    /* Deliberately fill the backing buffer before the next byte is fed. */
+    parser.used = sizeof(parser.bytes);
+    assert(!aw_parser_feed(&parser, open->bytes[0], 20, &frame));
+    assert(parser.used == 1 && parser.buffer_overruns == 2);
+    assert(parse(&parser, open->bytes + 1, open->size - 1, 21, types, COUNT(types)) == 1);
+    assert(types[0] == AW_SESSION_OPEN && parser.used == 0);
+
+    /* The feed path must also accept a new SYNC after an out-of-range cursor. */
+    parser.used = sizeof(parser.bytes) + 1;
+    assert(parse(&parser, open->bytes, open->size, 30, types, COUNT(types)) == 1);
+    assert(parser.used == 0 && parser.buffer_overruns == 3 && parser.rejected_headers == 2);
+}
+
+static void test_long_noise_and_missed_drain(void)
+{
+    AwParser parser;
+    AwFrame frame;
+    uint8_t types[2];
+    uint8_t malformed[3 * AW_MAX_FRAME];
+    Vector previous_version = vectors[0];
+    Vector bad_length = vectors[0];
+    Vector bad_crc = vectors[0];
+    const Vector *open = &vectors[0];
+    const Vector *ack = &vectors[1];
+    size_t used = 0;
+    unsigned cycle;
+    unsigned i;
+
+    aw_parser_init(&parser);
+    for (i = 0; i < 4096; ++i) {
+        uint8_t byte = i % 3 == 0 ? 0xA5 : 'x';
+        assert(!aw_parser_feed(&parser, byte, 10, &frame));
+        assert(parser.used <= 1);
+    }
+
+    assert(parser.used == 1); /* The last noise byte is a partial SYNC. */
+
+    previous_version.bytes[2] = 1;
+    recalc_crc(previous_version.bytes, previous_version.size);
+    bad_length.bytes[6] = AW_MAX_PAYLOAD;
+    recalc_crc(bad_length.bytes, bad_length.size);
+    bad_crc.bytes[bad_crc.size - 1] ^= 1;
+    memcpy(malformed + used, previous_version.bytes, previous_version.size);
+    used += previous_version.size;
+    memcpy(malformed + used, bad_length.bytes, bad_length.size);
+    used += bad_length.size;
+    memcpy(malformed + used, bad_crc.bytes, bad_crc.size);
+    used += bad_crc.size;
+
+    for (cycle = 0; cycle < 32; ++cycle) {
+        uint32_t now = 200u + 200u * cycle;
+        assert(parse(&parser, malformed, used, now, types, COUNT(types)) == 0);
+        /* Leave a truncated TELEMETRY holding one complete OPEN. On timeout,
+         * feed returns OPEN while keeping the first byte of a following ACK. */
+        assert(parse(&parser, vectors[4].bytes, 7, now, types, COUNT(types)) == 0);
+        assert(parse(&parser, open->bytes, open->size, now + 20u, types, COUNT(types)) == 0);
+        assert(aw_parser_feed(&parser, ack->bytes[0], now + 100u, &frame));
+        assert(frame.type == AW_SESSION_OPEN && parser.used == 1);
+        /* Deliberately skip next here and continue feeding one byte at a time. */
+        for (i = 1; i < ack->size - 1; ++i) {
+            assert(!aw_parser_feed(&parser, ack->bytes[i], now + 101u, &frame));
+        }
+        assert(aw_parser_feed(&parser, ack->bytes[ack->size - 1], now + 101u, &frame));
+        assert(frame.type == AW_SESSION_ACK && parser.used == 0);
+    }
+    assert(parser.rejected_headers == 64 && parser.rejected_crc == 32);
+    assert(parser.assembly_timeouts == 33 && parser.buffer_overruns == 0);
+}
+
 static AwFrame open_frame(uint64_t id)
 {
     return (AwFrame){ .type = AW_SESSION_OPEN, .payload.session_id = id };
@@ -334,6 +417,10 @@ int main(int argc, char **argv)
     puts("PASS: split/concatenated input, noise, embedded sync and resynchronization");
     test_timeout_and_wrap();
     puts("PASS: assembly timeout and uint16/uint32 wrap");
+    test_capacity_guard();
+    puts("PASS: synthetic full/out-of-range buffer state and resynchronization");
+    test_long_noise_and_missed_drain();
+    puts("PASS: long noise, consecutive malformed frames and missed drain recovery");
     test_session_authorization();
     puts("PASS: session STOP/ACK, cap and independent local permit");
     test_watchdog_and_reset();

@@ -73,6 +73,7 @@ typedef struct {
     uint32_t rejected_crc;
     uint32_t rejected_payloads;
     uint32_t assembly_timeouts;
+    uint32_t buffer_overruns; /* Number of capacity resets. */
 } AwParser;
 
 uint16_t aw_crc16(const uint8_t *bytes, size_t size);
